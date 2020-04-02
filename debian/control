@@ -1,0 +1,12 @@
+Source: pve-eslint
+Section: devel
+Priority: optional
+Maintainer: Proxmox Support Team <support@proxmox.com>
+Build-Depends: debhelper (>= 7.0.0~)
+
+Package: pve-eslint
+Architecture: all
+Depends: node-commander, node-colors, nodejs
+Description: ESLint for Proxmox Virtual Environment development
+ This package contains a version of eslint used to develop the
+ Proxmox Virtual Environment GUI.
