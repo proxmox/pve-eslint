@@ -6,6 +6,7 @@ GITVERSION:=$(shell git rev-parse HEAD)
 BUILDDIR ?= ${PACKAGE}-${DEB_VERSION_UPSTREAM}
 
 DEB=${PACKAGE}_${DEB_VERSION_UPSTREAM_REVISION}_all.deb
+DSC=${PACKAGE}_${DEB_VERSION_UPSTREAM_REVISION}.dsc
 
 SRCDIR=src
 UPSTREAM=eslint
@@ -15,15 +16,25 @@ BUILDSRC=${UPSTREAM}-${UPSTREAMTAG}
 all: ${DEB}
 	@echo ${DEB}
 
-.PHONY: deb
-deb: ${DEB}
-${DEB}: ${SRCDIR}
+.PHONY: dsc deb builddir
+
+${BUILDDIR}: builddir
+builddir: ${SRCDIR}
 	rm -rf ${BUILDDIR}
 	mkdir ${BUILDDIR}
 	cp -a debian ${BUILDDIR}/
 	cp -a ${SRCDIR}/* ${BUILDDIR}/
 	echo "git clone git://git.proxmox.com/git/pve-eslint.git\\ngit checkout ${GITVERSION}" > ${BUILDDIR}/debian/SOURCE
-	cd ${BUILDDIR}; dpkg-buildpackage -rfakeroot -b -uc -us
+
+
+dsc: ${DSC}
+${DSC}: builddir
+	cd ${BUILDDIR}; dpkg-buildpackage -S -uc -us
+	lintian ${DSC}
+
+deb: ${DEB}
+${DEB}: builddir
+	cd ${BUILDDIR}; dpkg-buildpackage -b -uc -us
 	lintian ${DEB}
 	@echo ${DEB}
 
@@ -60,7 +71,7 @@ distclean: clean
 
 .PHONY: clean
 clean:
-	rm -rf *~ debian/*~ *.deb ${BUILDSRC} ${BUILDSRC}.tmp ${UPSTREAM}.tmp ${BUILDDIR} *.changes *.dsc *.buildinfo
+	rm -rf *~ debian/*~ *.deb ${BUILDSRC} *.tmp/ ${BUILDDIR} *.changes *.tar.gz *.dsc *.buildinfo
 
 .PHONY: dinstall
 dinstall: deb
