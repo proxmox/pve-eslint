@@ -14,7 +14,6 @@ program.on('--help', function() {
     console.log('  Description:');
     console.log('');
     console.log('    lints javascript files');
-    console.log('    if no files are given, lints the current working directory');
     console.log('');
 });
 
