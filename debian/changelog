@@ -1,4 +1,10 @@
-pve-eslint (1.0-1) unstable; urgency=low
+pve-eslint (7.0.0~alpha3) unstable; urgency=medium
+
+  * bump version to match upstream one.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 09 Apr 2020 17:49:55 +0200
+
+pve-eslint (1.0) unstable; urgency=low
 
   * first version
 
