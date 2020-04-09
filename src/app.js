@@ -39,15 +39,16 @@ const defaultConfig = {
 	es2017: true,
     },
     globals: {
-	eslint: "writable",
 	Ext: "writable",
-	PVE: "writable",
-	PMG: "writable",
-	PVE_vnc_console_event: "writable",
 	FormData: "writable",
-	gettext: "writable",
+	PBS: "writable",
+	PMG: "writable",
+	PVE: "writable",
+	PVE_vnc_console_event: "writable",
 	Proxmox: "writable",
 	console: "writable",
+	eslint: "writable",
+	gettext: "writable",
     },
     rules: {
 	// from eslint:recommend, with tweaks for our source
