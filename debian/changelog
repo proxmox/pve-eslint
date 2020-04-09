@@ -1,3 +1,11 @@
+pve-eslint (7.0.0~alpha3-1) unstable; urgency=medium
+
+  * exit sanely if no args are given
+
+  * rules: dot-location: set location parameter to property
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 09 Apr 2020 18:52:05 +0200
+
 pve-eslint (7.0.0~alpha3) unstable; urgency=medium
 
   * bump version to match upstream one.
