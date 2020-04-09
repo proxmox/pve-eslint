@@ -120,7 +120,7 @@ const defaultConfig = {
 	"block-scoped-var": "error",
 	"consistent-return": "error",
 	"curly": ["error", "multi-line"],
-	"dot-location": "error",
+	"dot-location": ["error", "property"],
 	"dot-notation": "error",
 	"eqeqeq": "error",
 	"grouped-accessor-pairs": "error",
