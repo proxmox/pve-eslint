@@ -106,7 +106,7 @@ const defaultConfig = {
 	"no-unsafe-finally": "error",
 	"no-unsafe-negation": "error",
 	"no-unused-labels": "error",
-	"no-unused-vars": ["error", { vars: "all", args: "none" }],
+	"no-unused-vars": ["error", { vars: "all", args: "none", varsIgnorePattern: "^me$" }],
 	"no-useless-catch": "error",
 	"no-useless-escape": "error",
 	"no-with": "error",
