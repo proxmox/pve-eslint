@@ -253,47 +253,43 @@ report.results.forEach(function(result) {
     if (!!program.fix && result.output) {
 	fixes++;
     }
-    if (msgs.length > 0) {
-	console.error('[' + color.bold(filename) + ']:');
-	msgs.forEach(function(e) {
-	    let msg = 'at line ' + color.bold(e.line) + ' column ' +
-			  color.bold(e.column) + ': ' + e.ruleId;
-	    if (e.severity === 1) {
-		console.error(color.yellow("Warning " + msg));
-		if (max_sev < 1) {
-		    max_sev = 1;
-		}
-	    } else if (e.severity === 2) {
-		console.error(color.red("Error " + msg));
-		if (exitcode < 1) {
-		    exitcode = 1;
-		}
-		if (max_sev < 2) {
-		    max_sev = 2;
-		}
-	    } else {
-		console.error("Info " + msg);
-	    }
-	    if (e.message) {
-		console.error(e.message);
-	    }
-	    if (e.suggestion) {
-		console.error(e.suggestion);
-	    }
-	    if (!program.fix && e.fix) {
-		fixes++;
-		console.error("Could be auto-fixed");
-	    }
-	});
-
-	if (max_sev === 1) {
-	    files_warn.push(filename);
-	} else if (max_sev === 2) {
-	    files_err.push(filename);
-	}
-    } else {
+    if (msgs.length <= 0) {
 	files_ok.push(filename);
 	return;
+    }
+    console.error(`[./${color.bold(filename)}]:`);
+    msgs.forEach(function(e) {
+	if (max_sev < e.severity) {
+	    max_sev = e.severity;
+	}
+	let msg = `: line ${color.bold(e.line)} col ${color.bold(e.column)}: ${e.ruleId}`;
+	if (e.severity === 1) {
+	    msg = color.yellow("WARN" + msg);
+	} else if (e.severity === 2) {
+	    msg = color.red("ERR " + msg);
+	    if (exitcode < 1) {
+		exitcode = 1;
+	    }
+	} else {
+	    msg = "INFO" + msg;
+	}
+	if (e.message) {
+	    msg += ` - ${e.message}`;
+	}
+	if (!program.fix && e.fix) {
+	    fixes++;
+	    msg += ' (*)';
+	}
+	console.error(msg);
+	if (e.suggestion) {
+	    console.error(e.suggestion);
+	}
+    });
+
+    if (max_sev === 1) {
+	files_warn.push(filename);
+    } else if (max_sev === 2) {
+	files_err.push(filename);
     }
 
     console.log('------------------------------------------------------------');
@@ -302,19 +298,18 @@ report.results.forEach(function(result) {
 if (report.results.length > 1) {
     console.log(`${color.bold(files_ok.length + files_err.length)} files:`);
     if (files_err.length > 0) {
-	console.log(color.red(`${color.bold(files_err.length)} files have Errors`));
+	console.log(color.red(` ${color.bold(files_err.length)} files have Errors`));
     }
     if (files_warn.length > 0) {
-	console.log(color.yellow(`${color.bold(files_warn.length)} files have Warnings`));
+	console.log(color.yellow(` ${color.bold(files_warn.length)} files have Warnings`));
     }
     if (files_ok.length > 0) {
-	console.log(color.green(`${color.bold(files_ok.length)} files are OK`));
+	console.log(color.green(` ${color.bold(files_ok.length)} files are OK`));
     }
-    console.log('------------------------------------------------------------');
 } else if (files_ok.length > 0) {
     console.log(color.green(`${files_ok[0]} OK`));
-    console.log('------------------------------------------------------------');
 }
+console.log('------------------------------------------------------------');
 
 if (program.fix) {
     if (fixes > 0) {
@@ -324,8 +319,8 @@ if (program.fix) {
     } else {
 	console.log("No fixable Errors/Warnings found.");
     }
-} else {
-	console.log(`${color.bold(fixes)} Errors/Warnings could be auto-fixed.`);
+} else if (fixes > 0) {
+	console.log(`${color.bold(fixes)} issues marked with (*) could be auto-fixed using '--fix'.`);
 }
 
 process.exit(exitcode);
