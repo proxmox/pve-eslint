@@ -1,6 +1,7 @@
 (function() {
 'use strict';
 
+const path = require('path');
 const color = require('colors');
 const program = require('commander');
 
@@ -224,12 +225,12 @@ const defaultConfig = {
 
 let config = defaultConfig;
 if (program.config) {
-    let path = program.config;
-    if (program.config.match(/^[^/]/)) {
-	path = process.cwd() + "/" + path;
+    let cfgpath = program.config;
+    if (cfgpath.match(/^[^/]/)) {
+	cfgpath = process.cwd() + "/" + cfgpath;
     }
     config = {
-	"extends": path,
+	"extends": cfgpath,
     };
 }
 
@@ -247,7 +248,7 @@ let files_ok = [];
 let fixes = 0;
 console.log('------------------------------------------------------------');
 report.results.forEach(function(result) {
-    let filename = result.filePath;
+    let filename = path.relative(process.cwd(), result.filePath);
     let msgs = result.messages;
     let max_sev = 0;
     if (!!program.fix && result.output) {
