@@ -138,7 +138,7 @@ const defaultConfig = {
 	"no-extra-label": "error",
 	"no-extra-parens": "error",
 	"no-floating-decimal": "error",
-	"no-implicit-coercion": "error",
+	"no-implicit-coercion": ["error", { allow: ["!!"] }],
 	"no-implicit-globals": "error",
 	"no-implied-eval": "error",
 	"no-invalid-this": "error",
