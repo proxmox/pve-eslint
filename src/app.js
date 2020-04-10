@@ -1,4 +1,4 @@
-(function () {
+(function() {
 'use strict';
 
 const color = require('colors');
@@ -34,7 +34,7 @@ const defaultConfig = {
 	ecmaVersion: 2017,
 	ecmaFeatures: {
 	    impliedStrict: true,
-	}
+	},
     },
     env: {
 	browser: true,
@@ -105,7 +105,7 @@ const defaultConfig = {
 	"no-unsafe-finally": "error",
 	"no-unsafe-negation": "error",
 	"no-unused-labels": "error",
-	"no-unused-vars": ["error", { vars: "all", args: "none" } ],
+	"no-unused-vars": ["error", { vars: "all", args: "none" }],
 	"no-useless-catch": "error",
 	"no-useless-escape": "error",
 	"no-with": "error",
@@ -177,13 +177,13 @@ const defaultConfig = {
 
 	// stylistic issues, only warn, most can be auto-fixed
 	// those are quite opinionated...
-	"array-bracket-spacing": [ "warn", "never" ],
-	"brace-style": [ "warn", "1tbs", { allowSingleLine: true }],
-	"comma-dangle": [ "warn", "always-multiline" ], // maybe only-multiline?
+	"array-bracket-spacing": ["warn", "never"],
+	"brace-style": ["warn", "1tbs", { allowSingleLine: true }],
+	"comma-dangle": ["warn", "always-multiline"], // maybe only-multiline?
 	"comma-spacing": "warn",
 	"comma-style": "warn",
 	"computed-property-spacing": "warn",
-	"consistent-this": [ "warn", "me" ],
+	"consistent-this": ["warn", "me"],
 	"eol-last": "warn",
 	"func-call-spacing": "warn",
 	"func-name-matching": "warn",
@@ -191,20 +191,20 @@ const defaultConfig = {
 	"key-spacing": "warn",
 	"keyword-spacing": "warn",
 	"linebreak-style": "warn",
-	"max-len": [ "warn", { code: 110, tabWidth: 8, ignoreComments: true, ignoreStrings: true, ignoreRegExpLiterals: true }],
+	"max-len": ["warn", { code: 110, tabWidth: 8, ignoreComments: true, ignoreStrings: true, ignoreRegExpLiterals: true }],
 	"no-array-constructor": "warn",
 	"no-lonely-if": "warn",
 	"no-mixed-operators": "warn",
 	"no-multiple-empty-lines": "warn",
 	"no-trailing-spaces": "warn",
-	"no-underscore-dangle": [ "warn", { allowAfterThis: true, }],
+	"no-underscore-dangle": ["warn", { allowAfterThis: true }],
 	"no-unneeded-ternary": "warn",
 	"no-whitespace-before-property": "warn",
 	"object-curly-newline": "warn",
-	"object-curly-spacing": [ "warn", "always" ],
-	"operator-linebreak" : [ "warn", "after", { overrides: { "?": "after" }}],
+	"object-curly-spacing": ["warn", "always"],
+	"operator-linebreak": ["warn", "after", { overrides: { "?": "after" } }],
 	"padded-blocks": ["warn", "never"], // not sure ...
-	"quote-props": [ "warn", "as-needed", { keywords: true, unnecessary: false }], // does nothing, maybe deactivate unnecessary
+	"quote-props": ["warn", "as-needed", { keywords: true, unnecessary: false }], // does nothing, maybe deactivate unnecessary
 	"semi": "warn",
 	"semi-spacing": "warn",
 	"semi-style": "warn",
@@ -229,8 +229,8 @@ if (program.config) {
 	path = process.cwd() + "/" + path;
     }
     config = {
-	extends: path
-    }
+	"extends": path,
+    };
 }
 
 const cli = new eslint.CLIEngine({
@@ -300,7 +300,7 @@ report.results.forEach(function(result) {
 });
 
 if (report.results.length > 1) {
-    console.log((`${color.bold(files_ok.length + files_err.length)} files:`));
+    console.log(`${color.bold(files_ok.length + files_err.length)} files:`);
     if (files_err.length > 0) {
 	console.log(color.red(`${color.bold(files_err.length)} files have Errors`));
     }
@@ -329,5 +329,4 @@ if (program.fix) {
 }
 
 process.exit(exitcode);
-
 }());
