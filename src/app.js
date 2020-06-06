@@ -145,7 +145,11 @@ const defaultConfig = {
 	"no-extend-native": "error",
 	"no-extra-bind": "error",
 	"no-extra-label": "error",
-	"no-extra-parens": "error",
+	"no-extra-parens": ["error", "all", {
+	    "conditionalAssign": false, // useful for if ((match = str.match(/.../))) lines
+	    "enforceForArrowConditionals": false,
+	    "nestedBinaryExpressions": false,
+	}],
 	"no-floating-decimal": "error",
 	"no-implicit-coercion": ["error", { allow: ["!!"] }],
 	"no-implicit-globals": "error",
