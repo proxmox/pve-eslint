@@ -1,0 +1,21 @@
+rules:
+  array-bracket-spacing:
+  - warn
+  - never
+  comma-dangle:
+  - warn
+  - always-multiline
+  no-extra-semi: warn
+  no-irregular-whitespace: error
+  no-undef: error
+  no-unused-vars:
+  - warn
+  - args: none
+    vars: all
+    varsIgnorePattern: ^(me|_.*)$
+  object-curly-spacing:
+  - warn
+  - always
+  semi: warn
+  semi-spacing: warn
+  semi-style: warn

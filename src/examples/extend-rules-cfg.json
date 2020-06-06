@@ -1,0 +1,18 @@
+{
+    "rules": {
+        "comma-dangle": ["warn", "always-multiline"],
+        "no-irregular-whitespace": "error",
+        "array-bracket-spacing": ["warn", "never"],
+        "object-curly-spacing": ["warn", "always"],
+        "no-unused-vars": ["warn", {
+            "vars": "all",
+            "args": "none",
+            "varsIgnorePattern": "^(me|_.*)$"
+        }],
+        "no-undef": "error",
+        "semi": "warn",
+        "semi-spacing": "warn",
+        "semi-style": "warn",
+        "no-extra-semi": "warn"
+    }
+}
