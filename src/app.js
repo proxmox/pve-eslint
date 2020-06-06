@@ -138,7 +138,7 @@ const defaultConfig = {
 	"no-caller": "error",
 	"no-constructor-return": "error",
 	"no-div-regex": "error",
-	"no-else-return": "error",
+	//"no-else-return": "warn", // not a real style problem, both can be OK
 	"no-empty-function": "error",
 	"no-eq-null": "error",
 	"no-eval": "error",
