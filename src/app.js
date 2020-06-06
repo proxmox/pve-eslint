@@ -211,7 +211,13 @@ const defaultConfig = {
 	"no-whitespace-before-property": "warn",
 	"object-curly-newline": "warn",
 	"object-curly-spacing": ["warn", "always"],
-	"operator-linebreak": ["warn", "after", { overrides: { "?": "after" } }],
+	"operator-linebreak": ["warn", "after", {
+	    "overrides": {
+		"?": "before",
+		":": "before",
+		"+": "ignore",
+	    },
+	}],
 	"padded-blocks": ["warn", "never"], // not sure ...
 	"quote-props": ["warn", "as-needed", { keywords: true, unnecessary: false }], // does nothing, maybe deactivate unnecessary
 	"semi": "warn",
@@ -225,7 +231,7 @@ const defaultConfig = {
 	"unicode-bom": "warn",
 	"arrow-body-style": "warn",
 	"arrow-spacing": "warn",
-	"no-confusing-arrow": "warn",
+	// "no-confusing-arrow": "warn", // can be useful to do and isn't really confusing
 	"prefer-numeric-literals": "warn",
 	"template-curly-spacing": "warn",
      },
