@@ -207,7 +207,16 @@ const defaultConfig = {
 	"max-len": ["warn", { code: 110, tabWidth: 8, ignoreComments: true, ignoreStrings: true, ignoreRegExpLiterals: true }],
 	"no-array-constructor": "warn",
 	"no-lonely-if": "warn",
-	"no-mixed-operators": "warn",
+	"no-mixed-operators": ["warn", {
+	    "groups": [
+		//["+", "-", "*", "/", "%", "**"], // assume the devs can do basic math..
+		["&", "|", "^", "~", "<<", ">>", ">>>"],
+		["==", "!=", "===", "!==", ">", ">=", "<", "<="],
+		["&&", "||"],
+		["in", "instanceof"]
+	    ],
+	    "allowSamePrecedence": true
+	}],
 	"no-multiple-empty-lines": "warn",
 	"no-trailing-spaces": "warn",
 	// "no-underscore-dangle": ["warn", { allowAfterThis: true }], // we use it for unused variables, like in rust
