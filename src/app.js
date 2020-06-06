@@ -222,7 +222,7 @@ const defaultConfig = {
 	"quote-props": ["warn", "as-needed", { keywords: true, unnecessary: false }], // does nothing, maybe deactivate unnecessary
 	"semi": "warn",
 	"semi-spacing": "warn",
-	"semi-style": "warn",
+	// "semi-style": "warn", // could be useful, but for ?: we often want to allow the ; on the next line
 	"space-before-blocks": "warn",
 	"space-before-function-paren": ["warn", "never"],
 	"space-in-parens": "warn",
