@@ -206,7 +206,7 @@ const defaultConfig = {
 	"no-mixed-operators": "warn",
 	"no-multiple-empty-lines": "warn",
 	"no-trailing-spaces": "warn",
-	"no-underscore-dangle": ["warn", { allowAfterThis: true }],
+	// "no-underscore-dangle": ["warn", { allowAfterThis: true }], // we use it for unused variables, like in rust
 	"no-unneeded-ternary": "warn",
 	"no-whitespace-before-property": "warn",
 	"object-curly-newline": "warn",
