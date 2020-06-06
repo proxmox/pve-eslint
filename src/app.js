@@ -223,14 +223,17 @@ const defaultConfig = {
      },
 };
 
+let pathExpand = (p) => {
+    if (p.match(/^[^/]/)) {
+	p = process.cwd() + "/" + p;
+    }
+    return p;
+};
+
 let config = defaultConfig;
 if (program.config) {
-    let cfgpath = program.config;
-    if (cfgpath.match(/^[^/]/)) {
-	cfgpath = process.cwd() + "/" + cfgpath;
-    }
     config = {
-	"extends": cfgpath,
+	"extends": pathExpand(program.config),
     };
 }
 
