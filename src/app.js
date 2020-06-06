@@ -8,6 +8,7 @@ const program = require('commander');
 program
     .usage('[options] [<file(s) ...>]')
     .option('-c, --config <configfile>', 'uses <configfile> for eslint config instead.')
+    .option('-e, --extend <configfile>', 'uses <configfile> ontop of default eslint config.')
     .option('-f, --fix', 'if set, fixes will be applied.');
 
 program.on('--help', function() {
@@ -18,11 +19,16 @@ program.on('--help', function() {
     console.log('');
 });
 
-if (process.argv.length <= 2) {
-    program.help();
+program.parse(process.argv);
+
+if (program.config && program.extend) {
+    console.error('Cannot use both, --config and --extend, at the same time!');
+    process.exit(1);
 }
 
-program.parse(process.argv);
+if (program.args.length < 1) {
+    program.help();
+}
 
 let paths = program.args;
 
@@ -235,6 +241,9 @@ if (program.config) {
     config = {
 	"extends": pathExpand(program.config),
     };
+} else if (program.extend) {
+    config.extends = pathExpand(program.extend);
+    console.log(`Extend with path: ${config.extends}`);
 }
 
 const cli = new eslint.CLIEngine({
