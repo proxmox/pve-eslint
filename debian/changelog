@@ -1,3 +1,25 @@
+pve-eslint (7.2.0-1) unstable; urgency=medium
+
+  * update to 7.2.0 release
+
+  * ship an example config and extend-rules sample files in docs
+
+  * 'no-unused-vars': allow starting with _underscore
+
+  * disable "no-underscore-dangle" as used in explicit unused variables
+
+  * disable 'no-else-return' rule
+
+  * try to improve 'object-curly-newline' rule
+
+  * disable 'semi-style' rule for now
+
+  * add --output-config CLI option
+
+  * add possibiliity to extend base config over CLI
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 06 Jun 2020 15:59:23 +0200
+
 pve-eslint (7.0.0-1) unstable; urgency=medium
 
   * update to final 7.0.0 release
