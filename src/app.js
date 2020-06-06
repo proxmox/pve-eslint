@@ -209,7 +209,11 @@ const defaultConfig = {
 	// "no-underscore-dangle": ["warn", { allowAfterThis: true }], // we use it for unused variables, like in rust
 	"no-unneeded-ternary": "warn",
 	"no-whitespace-before-property": "warn",
-	"object-curly-newline": "warn",
+	"object-curly-newline": ["warn", {
+	    "multiline": true,
+	    //"minProperties": 2, // FIXME: enable this??
+	    "consistent": true,
+	}],
 	"object-curly-spacing": ["warn", "always"],
 	"operator-linebreak": ["warn", "after", {
 	    "overrides": {
