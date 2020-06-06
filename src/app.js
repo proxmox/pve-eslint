@@ -9,7 +9,9 @@ program
     .usage('[options] [<file(s) ...>]')
     .option('-c, --config <configfile>', 'uses <configfile> for eslint config instead.')
     .option('-e, --extend <configfile>', 'uses <configfile> ontop of default eslint config.')
-    .option('-f, --fix', 'if set, fixes will be applied.');
+    .option('-f, --fix', 'if set, fixes will be applied.')
+    .option('--output-config', 'if set, only output the config as JSON and exit.')
+    ;
 
 program.on('--help', function() {
     console.log('');
@@ -26,7 +28,7 @@ if (program.config && program.extend) {
     process.exit(1);
 }
 
-if (program.args.length < 1) {
+if (program.args.length < 1 && !program.outputConfig) {
     program.help();
 }
 
@@ -244,6 +246,12 @@ if (program.config) {
 } else if (program.extend) {
     config.extends = pathExpand(program.extend);
     console.log(`Extend with path: ${config.extends}`);
+}
+
+if (program.outputConfig) {
+    let cfg = JSON.stringify(config, null, 2);
+    console.log(cfg);
+    process.exit(0);
 }
 
 const cli = new eslint.CLIEngine({
