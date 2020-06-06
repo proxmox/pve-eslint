@@ -61,6 +61,8 @@ const defaultConfig = {
 	console: "writable",
 	eslint: "writable",
 	gettext: "writable",
+	proxmoxOnlineHelpInfo: "writable",
+	pveOnlineHelpInfo: "writable",
     },
     rules: {
 	// from eslint:recommend, with tweaks for our source
