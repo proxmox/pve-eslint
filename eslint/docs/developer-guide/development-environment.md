@@ -6,7 +6,7 @@ ESLint has a very lightweight development environment that makes updating code f
 
 Go to <https://nodejs.org/> to download and install the latest stable version for your operating system.
 
-Most of the installers come with [npm](https://www.npmjs.com/) already installed, but if for some reason it doesn't work on your system, you can install it manually using the instructions on the site.
+Most of the installers already come with [npm](https://www.npmjs.com/) but if for some reason npm doesn't work on your system, you can install it manually using the instructions on the site.
 
 ## Step 2: Fork and checkout your own ESLint repository
 
@@ -23,7 +23,7 @@ You must be connected to the Internet for this step to work. You'll see a lot of
 
 ## Step 3: Add the upstream source
 
-The *upstream source* is the main ESLint repository that active development happens on. While you won't have push access to upstream, you will have pull access, allowing you to pull in the latest code whenever you want.
+The *upstream source* is the main ESLint repository where active development happens. While you won't have push access to upstream, you will have pull access, allowing you to pull in the latest code whenever you want.
 
 To add the upstream source for ESLint, run the following in your repository:
 

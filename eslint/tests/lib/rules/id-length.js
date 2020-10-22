@@ -77,7 +77,12 @@ ruleTester.run("id-length", rule, {
         { code: "var {x} = foo;", options: [{ properties: "never" }], parserOptions: { ecmaVersion: 6 } },
         { code: "var {x, y: {z}} = foo;", options: [{ properties: "never" }], parserOptions: { ecmaVersion: 6 } },
         { code: "let foo = { [a]: 1 };", options: [{ properties: "always" }], parserOptions: { ecmaVersion: 6 } },
-        { code: "let foo = { [a + b]: 1 };", options: [{ properties: "always" }], parserOptions: { ecmaVersion: 6 } }
+        { code: "let foo = { [a + b]: 1 };", options: [{ properties: "always" }], parserOptions: { ecmaVersion: 6 } },
+        { code: "function BEFORE_send() {};", options: [{ min: 3, max: 5, exceptionPatterns: ["^BEFORE_"] }] },
+        { code: "function BEFORE_send() {};", options: [{ min: 3, max: 5, exceptionPatterns: ["^BEFORE_", "send$"] }] },
+        { code: "function BEFORE_send() {};", options: [{ min: 3, max: 5, exceptionPatterns: ["^BEFORE_", "^A", "^Z"] }] },
+        { code: "function BEFORE_send() {};", options: [{ min: 3, max: 5, exceptionPatterns: ["^A", "^BEFORE_", "^Z"] }] },
+        { code: "var x = 1 ;", options: [{ min: 3, max: 5, exceptionPatterns: ["[x-z]"] }] }
     ],
     invalid: [
         { code: "var x = 1;", errors: [tooShortError] },
@@ -103,6 +108,13 @@ ruleTester.run("id-length", rule, {
         {
             code: "var _$x$_t$ = Foo(42)",
             options: [{ min: 2, max: 4 }],
+            errors: [
+                tooLongError
+            ]
+        },
+        {
+            code: "var toString;",
+            options: [{ max: 5 }],
             errors: [
                 tooLongError
             ]
@@ -193,6 +205,19 @@ ruleTester.run("id-length", rule, {
                     data: { name: "b", min: 2 },
                     line: 1,
                     column: 19,
+                    type: "Identifier"
+                }
+            ]
+        },
+        {
+            code: "var hasOwnProperty;",
+            options: [{ max: 10, exceptions: [] }],
+            errors: [
+                {
+                    messageId: "tooLong",
+                    data: { name: "hasOwnProperty", max: 10 },
+                    line: 1,
+                    column: 5,
                     type: "Identifier"
                 }
             ]
@@ -437,6 +462,27 @@ ruleTester.run("id-length", rule, {
             code: "var foo = {x: prop};",
             options: [{ properties: "always" }],
             parserOptions: { ecmaVersion: 6 },
+            errors: [
+                tooShortError
+            ]
+        },
+        {
+            code: "function BEFORE_send() {};",
+            options: [{ min: 3, max: 5 }],
+            errors: [
+                tooLongError
+            ]
+        },
+        {
+            code: "function NOTMATCHED_send() {};",
+            options: [{ min: 3, max: 5, exceptionPatterns: ["^BEFORE_"] }],
+            errors: [
+                tooLongError
+            ]
+        },
+        {
+            code: "function N() {};",
+            options: [{ min: 3, max: 5, exceptionPatterns: ["^BEFORE_"] }],
             errors: [
                 tooShortError
             ]

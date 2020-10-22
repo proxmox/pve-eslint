@@ -288,6 +288,11 @@ ruleTester.run("yoda", rule, {
             code: "if('a' <= x && x < MAX) {}",
             options: ["never", { exceptRange: true }]
         },
+        {
+            code: "if (0 <= obj?.a && obj?.a < 1) {}",
+            options: ["never", { exceptRange: true }],
+            parserOptions: { ecmaVersion: 2020 }
+        },
 
         // onlyEquality
         {
@@ -1159,6 +1164,150 @@ ruleTester.run("yoda", rule, {
                 }
             ]
         },
+        {
+            code: "0 < f()in obj",
+            output: "f() > 0 in obj",
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "right", operator: "<" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "1 > x++instanceof foo",
+            output: "x++ < 1 instanceof foo",
+            options: ["never"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "right", operator: ">" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "x < ('foo')in bar",
+            output: "('foo') > x in bar",
+            options: ["always"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "left", operator: "<" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "false <= ((x))in foo",
+            output: "((x)) >= false in foo",
+            options: ["never"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "right", operator: "<=" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "x >= (1)instanceof foo",
+            output: "(1) <= x instanceof foo",
+            options: ["always"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "left", operator: ">=" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "false <= ((x)) in foo",
+            output: "((x)) >= false in foo",
+            options: ["never"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "right", operator: "<=" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "x >= 1 instanceof foo",
+            output: "1 <= x instanceof foo",
+            options: ["always"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "left", operator: ">=" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "x >= 1/**/instanceof foo",
+            output: "1 <= x/**/instanceof foo",
+            options: ["always"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "left", operator: ">=" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "(x >= 1)instanceof foo",
+            output: "(1 <= x)instanceof foo",
+            options: ["always"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "left", operator: ">=" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "(x) >= (1)instanceof foo",
+            output: "(1) <= (x)instanceof foo",
+            options: ["always"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "left", operator: ">=" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "1 > x===foo",
+            output: "x < 1===foo",
+            options: ["never"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "right", operator: ">" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+        {
+            code: "1 > x",
+            output: "x < 1",
+            options: ["never"],
+            errors: [
+                {
+                    messageId: "expected",
+                    data: { expectedSide: "right", operator: ">" },
+                    type: "BinaryExpression"
+                }
+            ]
+        },
+
         {
             code: "if (`green` < x.y && x.y < `blue`) {}",
             output: "if (`green` < x.y && `blue` > x.y) {}",

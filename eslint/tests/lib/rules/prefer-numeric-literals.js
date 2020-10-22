@@ -16,7 +16,7 @@ const rule = require("../../../lib/rules/prefer-numeric-literals"),
 // Tests
 //------------------------------------------------------------------------------
 
-const ruleTester = new RuleTester({ parserOptions: { ecmaVersion: 6 } });
+const ruleTester = new RuleTester({ parserOptions: { ecmaVersion: 2021 } });
 
 ruleTester.run("prefer-numeric-literals", rule, {
     valid: [
@@ -318,6 +318,57 @@ ruleTester.run("prefer-numeric-literals", rule, {
             code: "parseInt('11', 2)//comment\n;",
             output: "0b11//comment\n;",
             errors: 1
+        },
+
+        // Optional chaining
+        {
+            code: "parseInt?.(\"1F7\", 16) === 255;",
+            output: "0x1F7 === 255;",
+            errors: [{ message: "Use hexadecimal literals instead of parseInt()." }]
+        },
+        {
+            code: "Number?.parseInt(\"1F7\", 16) === 255;",
+            output: "0x1F7 === 255;",
+            errors: [{ message: "Use hexadecimal literals instead of Number?.parseInt()." }]
+        },
+        {
+            code: "Number?.parseInt?.(\"1F7\", 16) === 255;",
+            output: "0x1F7 === 255;",
+            errors: [{ message: "Use hexadecimal literals instead of Number?.parseInt()." }]
+        },
+        {
+            code: "(Number?.parseInt)(\"1F7\", 16) === 255;",
+            output: "0x1F7 === 255;",
+            errors: [{ message: "Use hexadecimal literals instead of Number?.parseInt()." }]
+        },
+        {
+            code: "(Number?.parseInt)?.(\"1F7\", 16) === 255;",
+            output: "0x1F7 === 255;",
+            errors: [{ message: "Use hexadecimal literals instead of Number?.parseInt()." }]
+        },
+
+        // `parseInt` doesn't support numeric separators. The rule shouldn't autofix in those cases.
+        {
+            code: "parseInt('1_0', 2);",
+            output: null,
+            errors: [{ message: "Use binary literals instead of parseInt()." }]
+        },
+        {
+            code: "Number.parseInt('5_000', 8);",
+            output: null,
+            errors: [{ message: "Use octal literals instead of Number.parseInt()." }]
+        },
+        {
+            code: "parseInt('0_1', 16);",
+            output: null,
+            errors: [{ message: "Use hexadecimal literals instead of parseInt()." }]
+        },
+        {
+
+            // this would be indeed the same as `0x0_0`, but there's no need to autofix this edge case that looks more like a mistake.
+            code: "Number.parseInt('0_0', 16);",
+            output: null,
+            errors: [{ message: "Use hexadecimal literals instead of Number.parseInt()." }]
         }
     ]
 });

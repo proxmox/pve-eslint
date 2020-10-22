@@ -218,11 +218,35 @@ ruleTester.run("getter-return", rule, {
         },
         { code: "Object.defineProperty(foo, \"bar\", { get: function (){if(bar) {return true;}}});", errors: [{ messageId: "expectedAlways" }] },
         { code: "Object.defineProperty(foo, \"bar\", { get: function (){ ~function () { return true; }()}});", errors: [{ messageId: "expected" }] },
+
+        // option: {allowImplicit: true}
         { code: "Object.defineProperties(foo, { bar: { get: function () {}} });", options, errors: [{ messageId: "expected" }] },
         { code: "Object.defineProperties(foo, { bar: { get: function (){if(bar) {return true;}}}});", options, errors: [{ messageId: "expectedAlways" }] },
         { code: "Object.defineProperties(foo, { bar: { get: function () {~function () { return true; }()}} });", options, errors: [{ messageId: "expected" }] },
+        { code: "Object.defineProperty(foo, \"bar\", { get: function (){}});", options, errors: [{ messageId: "expected" }] },
 
-        // option: {allowImplicit: true}
-        { code: "Object.defineProperty(foo, \"bar\", { get: function (){}});", options, errors: [{ messageId: "expected" }] }
+        // Optional chaining
+        {
+            code: "Object?.defineProperty(foo, 'bar', { get: function (){} });",
+            parserOptions: { ecmaVersion: 2020 },
+            errors: [{ messageId: "expected", data: { name: "method 'get'" } }]
+        },
+        {
+            code: "(Object?.defineProperty)(foo, 'bar', { get: function (){} });",
+            parserOptions: { ecmaVersion: 2020 },
+            errors: [{ messageId: "expected", data: { name: "method 'get'" } }]
+        },
+        {
+            code: "Object?.defineProperty(foo, 'bar', { get: function (){} });",
+            options,
+            parserOptions: { ecmaVersion: 2020 },
+            errors: [{ messageId: "expected", data: { name: "method 'get'" } }]
+        },
+        {
+            code: "(Object?.defineProperty)(foo, 'bar', { get: function (){} });",
+            options,
+            parserOptions: { ecmaVersion: 2020 },
+            errors: [{ messageId: "expected", data: { name: "method 'get'" } }]
+        }
     ]
 });

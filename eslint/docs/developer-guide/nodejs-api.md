@@ -8,18 +8,18 @@ While ESLint is designed to be run on the command line, it's possible to use ESL
 
 * [ESLint]
     * [constructor()][eslint-constructor]
-    * [lintFiles()][eslint-lintFiles]
-    * [lintText()][eslint-lintText]
-    * [calculateConfigForFile()][eslint-calculateConfigForFile]
-    * [isPathIgnored()][eslint-isPathIgnored]
-    * [loadFormatter()][eslint-loadFormatter]
+    * [lintFiles()][eslint-lintfiles]
+    * [lintText()][eslint-linttext]
+    * [calculateConfigForFile()][eslint-calculateconfigforfile]
+    * [isPathIgnored()][eslint-ispathignored]
+    * [loadFormatter()][eslint-loadformatter]
     * [static version][eslint-version]
-    * [static outputFixes()][eslint-outputFixes]
-    * [static getErrorResults()][eslint-getErrorResults]
-    * [LintResult type](lintresult)
-    * [LintMessage type](lintmessage)
-    * [EditInfo type](editinfo)
-    * [Formatter type](formatter)
+    * [static outputFixes()][eslint-outputfixes]
+    * [static getErrorResults()][eslint-geterrorresults]
+    * [LintResult type][lintresult]
+    * [LintMessage type][lintmessage]
+    * [EditInfo type][editinfo]
+    * [Formatter type][formatter]
 * [SourceCode](#sourcecode)
     * [splitLines()](#sourcecode-splitlines)
 * [Linter](#linter)
@@ -926,7 +926,7 @@ The top-level report object has a `results` array containing all linting results
 * `source` - The source code for the given file. This property is omitted if this file has no errors/warnings or if the `output` property is present.
 * `output` - The source code for the given file with as many fixes applied as possible, so you can use that to rewrite the files if necessary. This property is omitted if no fix is available.
 
-The top-level report object also has `errorCount` and `warningCount` which give the exact number of errors and warnings respectively on all the files. Additionally, `usedDeprecatedRules` signals any deprecated rules used and their replacement (if available). Specifically, it is array of objects with properties like so:
+The top-level report object also has `errorCount` and `warningCount` which give the exact number of errors and warnings respectively on all the files. Additionally, `usedDeprecatedRules` signals any deprecated rules used and their replacement (if available). Specifically, it is an array of objects with properties like so:
 
 * `ruleId` - The name of the rule (e.g. `indent-legacy`).
 * `replacedBy` - An array of rules that replace the deprecated rule (e.g. `["indent"]`).
@@ -1383,14 +1383,14 @@ ruleTester.run("my-rule", myRule, {
 [thirdparty-formatters]: https://www.npmjs.com/search?q=eslintformatter
 [eslint]: #eslint-class
 [eslint-constructor]: #-new-eslintoptions
-[eslint-lintfiles]: #-eslintlintFilespatterns
-[eslint-linttext]: #-eslintlintTextcode-options
-[eslint-calculateconfigforfile]: #-eslintcalculateConfigForFilefilePath
-[eslint-ispathignored]: #-eslintisPathIgnoredfilePath
-[eslint-loadformatter]: #-eslintloadFormatternameOrPath
+[eslint-lintfiles]: #-eslintlintfilespatterns
+[eslint-linttext]: #-eslintlinttextcode-options
+[eslint-calculateconfigforfile]: #-eslintcalculateconfigforfilefilepath
+[eslint-ispathignored]: #-eslintispathignoredfilepath
+[eslint-loadformatter]: #-eslintloadformatternameorpath
 [eslint-version]: #-eslintversion
-[eslint-outputfixes]: #-eslintoutputFixesresults
-[eslint-geterrorresults]: #-eslintgetErrorResultsresults
+[eslint-outputfixes]: #-eslintoutputfixesresults
+[eslint-geterrorresults]: #-eslintgeterrorresultsresults
 [lintresult]: #-lintresult-type
 [lintmessage]: #-lintmessage-type
 [editinfo]: #-editinfo-type

@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 const assert = require("chai").assert,
+    util = require("util"),
     espree = require("espree"),
     astUtils = require("../../../../lib/rules/utils/ast-utils"),
     { Linter } = require("../../../../lib/linter"),
@@ -478,6 +479,28 @@ describe("ast-utils", () => {
                 assert.strictEqual(astUtils.getStaticStringValue(ast.body[0].expression), expectedResults[key]);
             });
         });
+
+        it("should return text of regex literal even if it's not supported natively.", () => {
+            const node = {
+                type: "Literal",
+                value: null,
+                regex: { pattern: "(?:)", flags: "u" }
+            };
+            const expectedText = "/(?:)/u";
+
+            assert.strictEqual(astUtils.getStaticStringValue(node), expectedText);
+        });
+
+        it("should return text of bigint literal even if it's not supported natively.", () => {
+            const node = {
+                type: "Literal",
+                value: null,
+                bigint: "100n"
+            };
+            const expectedText = "100n";
+
+            assert.strictEqual(astUtils.getStaticStringValue(node), expectedText);
+        });
     });
 
     describe("getStaticPropertyName", () => {
@@ -714,21 +737,84 @@ describe("ast-utils", () => {
 
     {
         const expectedResults = {
-            5: true,
             0: true,
+            5: true,
+            8: true,
+            9: true,
+            50: true,
+            123: true,
+            "1_0": true,
+            "1_0_1": true,
+            "12_3": true,
+            "5_000": true,
+            "500_0": true,
+            "500_00": true,
+            "5_000_00": true,
+            "1_234_56": true,
+            "1_2_3_4": true,
+            "11_22_33_44": true,
+            "1_23_4_56_7_89": true,
+            "08": true,
+            "09": true,
+            "008": true,
+            "0192": true,
+            "0180": true,
+            "090": true,
+            "088": true,
+            "099": true,
+            "089": true,
+            "0098": true,
+            "01892": true,
+            "08192": true,
+            "01829": true,
+            "018290": true,
+            "0.": false,
             "5.": false,
+            ".0": false,
+            ".5": false,
             "5.0": false,
+            "5.00_00": false,
+            "5.0_1": false,
+            "0.1_0": false,
+            "5.1_2": false,
+            "1.23_45": false,
+            ".0_1": false,
+            ".12_34": false,
             "05": false,
+            "0123": false,
+            "076543210": false,
+            "08.": false,
             "0x5": false,
+            "0b11_01": false,
+            "0o0_1": false,
+            "0x56_78": false,
             "5e0": false,
+            "0.e1": false,
+            ".0e1": false,
+            "5e0_1": false,
+            "5e1_000": false,
+            "5e12_34": false,
             "5e-0": false,
+            "5e-0_1": false,
+            "5e-1_2": false,
+            "1_2.3_4e5_6": false,
+            "1n": false,
+            "1_2n": false,
+            "1_000n": false,
             "'5'": false
         };
+
+        const ecmaVersion = espree.latestEcmaVersion;
 
         describe("isDecimalInteger", () => {
             Object.keys(expectedResults).forEach(key => {
                 it(`should return ${expectedResults[key]} for ${key}`, () => {
-                    assert.strictEqual(astUtils.isDecimalInteger(espree.parse(key).body[0].expression), expectedResults[key]);
+                    assert.strictEqual(
+                        astUtils.isDecimalInteger(
+                            espree.parse(key, { ecmaVersion }).body[0].expression
+                        ),
+                        expectedResults[key]
+                    );
                 });
             });
         });
@@ -736,7 +822,12 @@ describe("ast-utils", () => {
         describe("isDecimalIntegerNumericToken", () => {
             Object.keys(expectedResults).forEach(key => {
                 it(`should return ${expectedResults[key]} for ${key}`, () => {
-                    assert.strictEqual(astUtils.isDecimalIntegerNumericToken(espree.tokenize(key)[0]), expectedResults[key]);
+                    assert.strictEqual(
+                        astUtils.isDecimalIntegerNumericToken(
+                            espree.tokenize(key, { ecmaVersion })[0]
+                        ),
+                        expectedResults[key]
+                    );
                 });
             });
         });
@@ -991,12 +1082,30 @@ describe("ast-utils", () => {
             "foo.bar": true,
             "(foo = bar)": true,
             "(foo = 1)": false,
+            "(foo += bar)": false,
+            "(foo -= bar)": false,
+            "(foo *= bar)": false,
+            "(foo /= bar)": false,
+            "(foo %= bar)": false,
+            "(foo **= bar)": false,
+            "(foo <<= bar)": false,
+            "(foo >>= bar)": false,
+            "(foo >>>= bar)": false,
+            "(foo &= bar)": false,
+            "(foo |= bar)": false,
+            "(foo ^= bar)": false,
             "(1, 2, 3)": false,
             "(foo, 2, 3)": false,
             "(1, 2, foo)": true,
             "1 && 2": false,
             "1 && foo": true,
-            "foo && 2": true,
+            "foo && 2": false,
+
+            // A future improvement could detect the left side as statically falsy, making this false.
+            "false && foo": true,
+            "foo &&= 2": false,
+            "foo.bar ??= 2": true,
+            "foo[bar] ||= 2": true,
             "foo ? 1 : 2": false,
             "foo ? bar : 2": true,
             "foo ? 1 : bar": true,
@@ -1006,7 +1115,7 @@ describe("ast-utils", () => {
 
         Object.keys(EXPECTED_RESULTS).forEach(key => {
             it(`returns ${EXPECTED_RESULTS[key]} for ${key}`, () => {
-                const ast = espree.parse(key, { ecmaVersion: 6 });
+                const ast = espree.parse(key, { ecmaVersion: 2021 });
 
                 assert.strictEqual(astUtils.couldBeError(ast.body[0].expression), EXPECTED_RESULTS[key]);
             });
@@ -1411,7 +1520,135 @@ describe("ast-utils", () => {
         });
     });
 
-    describe("hasOctalEscapeSequence", () => {
+    describe("equalLiteralValue", () => {
+        describe("should return true if two regex values are same, even if it's not supported natively.", () => {
+            const patterns = [
+                {
+                    nodeA: {
+                        type: "Literal",
+                        value: /(?:)/u,
+                        regex: { pattern: "(?:)", flags: "u" }
+                    },
+                    nodeB: {
+                        type: "Literal",
+                        value: /(?:)/u,
+                        regex: { pattern: "(?:)", flags: "u" }
+                    },
+                    expected: true
+                },
+                {
+                    nodeA: {
+                        type: "Literal",
+                        value: null,
+                        regex: { pattern: "(?:)", flags: "u" }
+                    },
+                    nodeB: {
+                        type: "Literal",
+                        value: null,
+                        regex: { pattern: "(?:)", flags: "u" }
+                    },
+                    expected: true
+                },
+                {
+                    nodeA: {
+                        type: "Literal",
+                        value: null,
+                        regex: { pattern: "(?:)", flags: "u" }
+                    },
+                    nodeB: {
+                        type: "Literal",
+                        value: /(?:)/, // eslint-disable-line require-unicode-regexp
+                        regex: { pattern: "(?:)", flags: "" }
+                    },
+                    expected: false
+                },
+                {
+                    nodeA: {
+                        type: "Literal",
+                        value: null,
+                        regex: { pattern: "(?:a)", flags: "u" }
+                    },
+                    nodeB: {
+                        type: "Literal",
+                        value: null,
+                        regex: { pattern: "(?:b)", flags: "u" }
+                    },
+                    expected: false
+                }
+            ];
+
+            for (const { nodeA, nodeB, expected } of patterns) {
+                it(`should return ${expected} if it compared ${util.format("%o", nodeA)} and ${util.format("%o", nodeB)}`, () => {
+                    assert.strictEqual(astUtils.equalLiteralValue(nodeA, nodeB), expected);
+                });
+            }
+        });
+
+        describe("should return true if two bigint values are same, even if it's not supported natively.", () => {
+            const patterns = [
+                {
+                    nodeA: {
+                        type: "Literal",
+                        value: null,
+                        bigint: "1"
+                    },
+                    nodeB: {
+                        type: "Literal",
+                        value: null,
+                        bigint: "1"
+                    },
+                    expected: true
+                },
+                {
+                    nodeA: {
+                        type: "Literal",
+                        value: null,
+                        bigint: "1"
+                    },
+                    nodeB: {
+                        type: "Literal",
+                        value: null,
+                        bigint: "2"
+                    },
+                    expected: false
+                },
+                {
+                    nodeA: {
+                        type: "Literal",
+                        value: 1n,
+                        bigint: "1"
+                    },
+                    nodeB: {
+                        type: "Literal",
+                        value: 1n,
+                        bigint: "1"
+                    },
+                    expected: true
+                },
+                {
+                    nodeA: {
+                        type: "Literal",
+                        value: 1n,
+                        bigint: "1"
+                    },
+                    nodeB: {
+                        type: "Literal",
+                        value: 2n,
+                        bigint: "2"
+                    },
+                    expected: false
+                }
+            ];
+
+            for (const { nodeA, nodeB, expected } of patterns) {
+                it(`should return ${expected} if it compared ${util.format("%o", nodeA)} and ${util.format("%o", nodeB)}`, () => {
+                    assert.strictEqual(astUtils.equalLiteralValue(nodeA, nodeB), expected);
+                });
+            }
+        });
+    });
+
+    describe("hasOctalOrNonOctalDecimalEscapeSequence", () => {
 
         /* eslint-disable quote-props */
         const expectedResults = {
@@ -1446,19 +1683,24 @@ describe("ast-utils", () => {
             "\\\\\\1": true,
             "\\\\\\01": true,
             "\\\\\\08": true,
+            "\\8": true,
+            "\\9": true,
+            "a\\8a": true,
+            "\\0\\8": true,
+            "\\8\\0": true,
+            "\\80": true,
+            "\\81": true,
+            "\\\\\\8": true,
+            "\\\n\\1": true,
+            "foo\\\nbar\\2baz": true,
+            "\\\n\\8": true,
+            "foo\\\nbar\\9baz": true,
 
             "\\0": false,
-            "\\8": false,
-            "\\9": false,
             " \\0": false,
             "\\0 ": false,
             "a\\0": false,
             "\\0a": false,
-            "a\\8a": false,
-            "\\0\\8": false,
-            "\\8\\0": false,
-            "\\80": false,
-            "\\81": false,
             "\\\\": false,
             "\\\\0": false,
             "\\\\01": false,
@@ -1466,7 +1708,6 @@ describe("ast-utils", () => {
             "\\\\1": false,
             "\\\\12": false,
             "\\\\\\0": false,
-            "\\\\\\8": false,
             "\\0\\\\": false,
             "0": false,
             "1": false,
@@ -1476,7 +1717,10 @@ describe("ast-utils", () => {
             "80": false,
             "12": false,
             "\\a": false,
-            "\\n": false
+            "\\n": false,
+            "\\\n": false,
+            "foo\\\nbar": false,
+            "128\\\n349": false
         };
         /* eslint-enable quote-props */
 
@@ -1484,7 +1728,31 @@ describe("ast-utils", () => {
             it(`should return ${expectedResults[key]} for ${key}`, () => {
                 const ast = espree.parse(`"${key}"`);
 
-                assert.strictEqual(astUtils.hasOctalEscapeSequence(ast.body[0].expression.raw), expectedResults[key]);
+                assert.strictEqual(astUtils.hasOctalOrNonOctalDecimalEscapeSequence(ast.body[0].expression.raw), expectedResults[key]);
+            });
+        });
+    });
+
+    describe("isLogicalAssignmentOperator", () => {
+        const expectedResults = {
+            "&&=": true,
+            "||=": true,
+            "??=": true,
+            "&&": false,
+            "||": false,
+            "??": false,
+            "=": false,
+            "&=": false,
+            "|=": false,
+            "+=": false,
+            "**=": false,
+            "==": false,
+            "===": false
+        };
+
+        Object.entries(expectedResults).forEach(([key, value]) => {
+            it(`should return ${value} for ${key}`, () => {
+                assert.strictEqual(astUtils.isLogicalAssignmentOperator(key), value);
             });
         });
     });

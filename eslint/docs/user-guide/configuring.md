@@ -13,6 +13,27 @@ There are several pieces of information that can be configured:
 
 All of these options give you fine-grained control over how ESLint treats your code.
 
+## Table of Contents
+
+* [Specifying Parser Options](#specifying-parser-options)
+* [Specifying Parser](#specifying-parser)
+* [Specifying Processor](#specifying-processor)
+* [Specifying Environments](#specifying-environments)
+* [Specifying Globals](#specifying-globals)
+* [Configuring Plugins](#configuring-plugins)
+* [Configuring Rules](#configuring-rules)
+* [Disabling Rules with Inline Comments](#disabling-rules-with-inline-comments)
+* [Configuring Inline Comment Behaviors](#configuring-inline-comment-behaviors)
+* [Adding Shared Settings](#adding-shared-settings)
+* [Using Configuration Files](#using-configuration-files-1)
+* [Configuration File Formats](#configuration-file-formats)
+* [Configuration Cascading and Hierarchy](#configuration-cascading-and-hierarchy)
+* [Extending Configuration Files](#extending-configuration-files)
+* [Configuration Based on Glob Patterns](#configuration-based-on-glob-patterns)
+* [Comments in Configuration Files](#comments-in-configuration-files)
+* [Ignoring Files and Directories](#ignoring-files-and-directories)
+* [Personal Configuration File (deprecated)](#personal-configuration-file-deprecated)
+
 ## Specifying Parser Options
 
 ESLint allows you to specify the JavaScript language options you want to support. By default, ESLint expects ECMAScript 5 syntax. You can override that setting to enable support for other ECMAScript versions as well as JSX by using parser options.
@@ -24,7 +45,7 @@ For ES6 syntax, use `{ "parserOptions": { "ecmaVersion": 6 } }`; for new ES6 glo
 { "es6": true } }`. `{ "env": { "es6": true } }` enables ES6 syntax automatically, but `{ "parserOptions": { "ecmaVersion": 6 } }` does not enable ES6 globals automatically.
 Parser options are set in your `.eslintrc.*` file by using the `parserOptions` property. The available options are:
 
-* `ecmaVersion` - set to 3, 5 (default), 6, 7, 8, 9, 10 or 11 to specify the version of ECMAScript syntax you want to use. You can also set to 2015 (same as 6), 2016 (same as 7), 2017 (same as 8), 2018 (same as 9), 2019 (same as 10) or 2020 (same as 11) to use the year-based naming.
+* `ecmaVersion` - set to 3, 5 (default), 6, 7, 8, 9, 10, 11, or 12 to specify the version of ECMAScript syntax you want to use. You can also set to 2015 (same as 6), 2016 (same as 7), 2017 (same as 8), 2018 (same as 9), 2019 (same as 10), 2020 (same as 11), or 2021 (same as 12) to use the year-based naming.
 * `sourceType` - set to `"script"` (default) or `"module"` if your code is in ECMAScript modules.
 * `ecmaFeatures` - an object indicating which additional language features you'd like to use:
     * `globalReturn` - allow `return` statements in the global scope
@@ -73,7 +94,7 @@ To indicate the npm module to use as your parser, specify it using the `parser` 
 The following parsers are compatible with ESLint:
 
 * [Esprima](https://www.npmjs.com/package/esprima)
-* [Babel-ESLint](https://www.npmjs.com/package/babel-eslint) - A wrapper around the [Babel](https://babeljs.io) parser that makes it compatible with ESLint.
+* [@babel/eslint-parser](https://www.npmjs.com/package/@babel/eslint-parser) - A wrapper around the [Babel](https://babeljs.io) parser that makes it compatible with ESLint.
 * [@typescript-eslint/parser](https://www.npmjs.com/package/@typescript-eslint/parser) - A parser that converts TypeScript into an ESTree-compatible form so it can be used in ESLint.
 
 Note when using a custom parser, the `parserOptions` configuration property is still required for ESLint to work properly with features not in ECMAScript 5 by default. Parsers are all passed `parserOptions` and may or may not use them to determine which features to enable.
@@ -91,7 +112,7 @@ To specify processors in a configuration file, use the `processor` key with the 
 }
 ```
 
-To specify processors for a specific kind of files, use the combination of the `overrides` key and the `processor` key. For example, the following uses the processor `a-plugin/markdown` for `*.md` files.
+To specify processors for specific kinds of files, use the combination of the `overrides` key and the `processor` key. For example, the following uses the processor `a-plugin/markdown` for `*.md` files.
 
 ```json
 {
@@ -138,6 +159,7 @@ An environment defines global variables that are predefined. The available envir
 * `es6` - enable all ECMAScript 6 features except for modules (this automatically sets the `ecmaVersion` parser option to 6).
 * `es2017` - adds all ECMAScript 2017 globals and automatically sets the `ecmaVersion` parser option to 8.
 * `es2020` - adds all ECMAScript 2020 globals and automatically sets the `ecmaVersion` parser option to 11.
+* `es2021` - adds all ECMAScript 2021 globals and automatically sets the `ecmaVersion` parser option to 12.
 * `worker` - web workers global variables.
 * `amd` - defines `require()` and `define()` as global variables as per the [amd](https://github.com/amdjs/amdjs-api/wiki/AMD) spec.
 * `mocha` - adds all of the Mocha testing global variables.
@@ -1070,18 +1092,36 @@ Of particular note is that like `.gitignore` files, all paths used as patterns f
 
 Please see `.gitignore`'s specification for further examples of valid syntax.
 
-In addition to any patterns in a `.eslintignore` file, ESLint ignores files in `/**/node_modules/*` by default. It can still be added using `!`.
+In addition to any patterns in the `.eslintignore` file, ESLint always follows a couple implicit ignore rules even if the `--no-ignore` flag is passed. The implicit rules are as follows:
 
-For example, placing the following `.eslintignore` file in the current working directory will not ignore `node_modules/*` and ignore anything in the `build/` directory except `build/index.js`:
+* `node_modules/` is ignored.
+* Dotfiles (except for `.eslintrc.*`) as well as Dotfolders and their contents are ignored.
 
-```text
-# node_modules/* is ignored by default, but can be added using !
-!node_modules/*
+There are also some exceptions to these rules:
 
-# Ignore built files except build/index.js
-build/*
-!build/index.js
-```
+* If the path to lint is a glob pattern or directory path and contains a Dotfolder, all Dotfiles and Dotfolders will be linted. This includes sub-dotfiles and sub-dotfolders that are buried deeper in the directory structure.
+
+  For example, `eslint .config/` will lint all Dotfolders and Dotfiles in the `.config` directory, including immediate children as well as children that are deeper in the directory structure.
+
+* If the path to lint is a specific file path and the `--no-ignore` flag has been passed, ESLint will lint the file regardless of the implicit ignore rules.
+
+  For example, `eslint .config/my-config-file.js --no-ignore` will cause `my-config-file.js` to be linted. It should be noted that the same command without the `--no-ignore` line will not lint the `my-config-file.js` file.
+
+* Allowlist and denylist rules specified via `--ignore-pattern` or `.eslintignore` are prioritized above implicit ignore rules.
+
+  For example, in this scenario, `.build/test.js` is the desired file to allowlist. Because all Dotfolders and their children are ignored by default, `.build` must first be allowlisted so that eslint because aware of its children. Then, `.build/test.js` must be explicitly allowlisted, while the rest of the content is denylisted. This is done with the following `.eslintignore` file:
+
+  ```text
+  # Allowlist 'test.js' in the '.build' folder
+  # But do not allow anything else in the '.build' folder to be linted
+  !.build
+  .build/*
+  !.build/test.js
+  ```
+
+  The following `--ignore-pattern` is also equivalent:
+
+      eslint --ignore-pattern '!.build' --ignore-pattern '.build/*' --ignore-pattern '!.build/test.js' parent-folder/
 
 ### Using an Alternate File
 
@@ -1127,12 +1167,27 @@ You'll see this warning:
 
 ```text
 foo.js
-  0:0  warning  File ignored because of your .eslintignore file. Use --no-ignore to override.
+  0:0  warning  File ignored because of a matching ignore pattern. Use "--no-ignore" to override.
 
 ✖ 1 problem (0 errors, 1 warning)
 ```
 
 This message occurs because ESLint is unsure if you wanted to actually lint the file or not. As the message indicates, you can use `--no-ignore` to omit using the ignore rules.
+
+Consider another scenario where you may want to run ESLint on a specific Dotfile or Dotfolder, but have forgotten to specifically allow those files in your `.eslintignore` file. You would run something like this:
+
+    eslint .config/foo.js
+
+You would see this warning:
+
+```text
+.config/foo.js
+  0:0  warning  File ignored by default.  Use a negated ignore pattern (like "--ignore-pattern '!<relative/path/to/filename>'") to override
+
+✖ 1 problem (0 errors, 1 warning)
+```
+
+This messages occurs because, normally, this file would be ignored by ESLint's implicit ignore rules (as mentioned above). A negated ignore rule in your `.eslintignore` file would override the implicit rule and reinclude this file for linting. Additionally, in this specific case, `--no-ignore` could be used to lint the file as well.
 
 ## Personal Configuration File (deprecated)
 

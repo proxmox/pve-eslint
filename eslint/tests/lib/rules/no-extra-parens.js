@@ -44,7 +44,7 @@ function invalid(code, output, type, line, config) {
 
 const ruleTester = new RuleTester({
     parserOptions: {
-        ecmaVersion: 2020,
+        ecmaVersion: 2021,
         ecmaFeatures: {
             jsx: true
         }
@@ -190,6 +190,13 @@ ruleTester.run("no-extra-parens", rule, {
 
         // special cases
         "(0).a",
+        "(123).a",
+        "(08).a",
+        "(09).a",
+        "(018).a",
+        "(012934).a",
+        "(5_000).a",
+        "(5_000_00).a",
         "(function(){ }())",
         "({a: function(){}}.a());",
         "({a:0}.a ? b : c)",
@@ -355,6 +362,15 @@ ruleTester.run("no-extra-parens", rule, {
             "    );",
             "}"
         ].join("\n"),
+
+        // linebreaks before postfix update operators are not allowed
+        "(a\n)++",
+        "(a\n)--",
+        "(a\n\n)++",
+        "(a.b\n)--",
+        "(a\n.b\n)++",
+        "(a[\nb\n]\n)--",
+        "(a[b]\n\n)++",
 
         // async/await
         "async function a() { await (a + b) }",
@@ -612,6 +628,14 @@ ruleTester.run("no-extra-parens", rule, {
         "for (; a; a); a; a;",
         "for (let a = (b && c) === d; ;);",
 
+        "new (a()).b.c;",
+        "new (a().b).c;",
+        "new (a().b.c);",
+        "new (a().b().d);",
+        "new a().b().d;",
+        "new (a(b()).c)",
+        "new (a.b()).c",
+
         // Nullish coalescing
         { code: "var v = (a ?? b) || c", parserOptions: { ecmaVersion: 2020 } },
         { code: "var v = a ?? (b || c)", parserOptions: { ecmaVersion: 2020 } },
@@ -620,7 +644,32 @@ ruleTester.run("no-extra-parens", rule, {
         { code: "var v = (a || b) ?? c", parserOptions: { ecmaVersion: 2020 } },
         { code: "var v = a || (b ?? c)", parserOptions: { ecmaVersion: 2020 } },
         { code: "var v = (a && b) ?? c", parserOptions: { ecmaVersion: 2020 } },
-        { code: "var v = a && (b ?? c)", parserOptions: { ecmaVersion: 2020 } }
+        { code: "var v = a && (b ?? c)", parserOptions: { ecmaVersion: 2020 } },
+
+        // Optional chaining
+        { code: "var v = (obj?.aaa).bbb", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = (obj?.aaa)()", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = new (obj?.aaa)()", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = new (obj?.aaa)", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = (obj?.aaa)`template`", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = (obj?.()).bbb", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = (obj?.())()", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = new (obj?.())()", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = new (obj?.())", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var v = (obj?.())`template`", parserOptions: { ecmaVersion: 2020 } },
+        { code: "(obj?.aaa).bbb = 0", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var foo = (function(){})?.()", parserOptions: { ecmaVersion: 2020 } },
+        { code: "var foo = (function(){}?.())", parserOptions: { ecmaVersion: 2020 } },
+        {
+            code: "var foo = (function(){})?.call()",
+            options: ["all", { enforceForFunctionPrototypeMethods: false }],
+            parserOptions: { ecmaVersion: 2020 }
+        },
+        {
+            code: "var foo = (function(){}?.call())",
+            options: ["all", { enforceForFunctionPrototypeMethods: false }],
+            parserOptions: { ecmaVersion: 2020 }
+        }
     ],
 
     invalid: [
@@ -715,6 +764,18 @@ ruleTester.run("no-extra-parens", rule, {
         invalid("+((bar-foo))", "+(bar-foo)", "BinaryExpression"),
         invalid("++(foo)", "++foo", "Identifier"),
         invalid("--(foo)", "--foo", "Identifier"),
+        invalid("++\n(foo)", "++\nfoo", "Identifier"),
+        invalid("--\n(foo)", "--\nfoo", "Identifier"),
+        invalid("++(\nfoo)", "++\nfoo", "Identifier"),
+        invalid("--(\nfoo)", "--\nfoo", "Identifier"),
+        invalid("(foo)++", "foo++", "Identifier"),
+        invalid("(foo)--", "foo--", "Identifier"),
+        invalid("((foo)\n)++", "(foo\n)++", "Identifier"),
+        invalid("((foo\n))--", "(foo\n)--", "Identifier"),
+        invalid("((foo\n)\n)++", "(foo\n\n)++", "Identifier"),
+        invalid("(a\n.b)--", "a\n.b--", "MemberExpression"),
+        invalid("(a.\nb)++", "a.\nb++", "MemberExpression"),
+        invalid("(a\n[\nb\n])--", "a\n[\nb\n]--", "MemberExpression"),
         invalid("(a || b) ? c : d", "a || b ? c : d", "LogicalExpression"),
         invalid("a ? (b = c) : d", "a ? b = c : d", "AssignmentExpression"),
         invalid("a ? b : (c = d)", "a ? b : c = d", "AssignmentExpression"),
@@ -742,9 +803,14 @@ ruleTester.run("no-extra-parens", rule, {
         invalid("(a).b", "a.b", "Identifier"),
         invalid("(0)[a]", "0[a]", "Literal"),
         invalid("(0.0).a", "0.0.a", "Literal"),
+        invalid("(123.4).a", "123.4.a", "Literal"),
+        invalid("(0.0_0).a", "0.0_0.a", "Literal"),
         invalid("(0xBEEF).a", "0xBEEF.a", "Literal"),
+        invalid("(0xBE_EF).a", "0xBE_EF.a", "Literal"),
         invalid("(1e6).a", "1e6.a", "Literal"),
         invalid("(0123).a", "0123.a", "Literal"),
+        invalid("(08.1).a", "08.1.a", "Literal"),
+        invalid("(09.).a", "09..a", "Literal"),
         invalid("a[(function() {})]", "a[function() {}]", "FunctionExpression"),
         invalid("new (function(){})", "new function(){}", "FunctionExpression"),
         invalid("new (\nfunction(){}\n)", "new \nfunction(){}\n", "FunctionExpression", 1),
@@ -759,6 +825,7 @@ ruleTester.run("no-extra-parens", rule, {
         invalid("(new foo(bar)).baz", "new foo(bar).baz", "NewExpression"),
         invalid("(new foo.bar()).baz", "new foo.bar().baz", "NewExpression"),
         invalid("(new foo.bar()).baz()", "new foo.bar().baz()", "NewExpression"),
+        invalid("new a[(b()).c]", "new a[b().c]", "CallExpression"),
 
         invalid("(a)()", "a()", "Identifier"),
         invalid("(a.b)()", "a.b()", "MemberExpression"),
@@ -772,6 +839,14 @@ ruleTester.run("no-extra-parens", rule, {
         invalid("((new A))()", "(new A)()", "NewExpression"),
         invalid("new (foo\n.baz\n.bar\n.foo.baz)", "new foo\n.baz\n.bar\n.foo.baz", "MemberExpression"),
         invalid("new (foo.baz.bar.baz)", "new foo.baz.bar.baz", "MemberExpression"),
+        invalid("new ((a.b())).c", "new (a.b()).c", "CallExpression"),
+        invalid("new ((a().b)).c", "new (a().b).c", "MemberExpression"),
+        invalid("new ((a().b().d))", "new (a().b().d)", "MemberExpression"),
+        invalid("new ((a())).b.d", "new (a()).b.d", "CallExpression"),
+        invalid("new (a.b).d;", "new a.b.d;", "MemberExpression"),
+        invalid("(a().b).d;", "a().b.d;", "MemberExpression"),
+        invalid("(a.b()).d;", "a.b().d;", "CallExpression"),
+        invalid("(a.b).d;", "a.b.d;", "MemberExpression"),
 
         invalid("0, (_ => 0)", "0, _ => 0", "ArrowFunctionExpression", 1),
         invalid("(_ => 0), 0", "_ => 0, 0", "ArrowFunctionExpression", 1),
@@ -2696,6 +2771,34 @@ ruleTester.run("no-extra-parens", rule, {
         {
             code: "var v = a | b ?? (c | d)",
             output: "var v = a | b ?? c | d",
+            parserOptions: { ecmaVersion: 2020 },
+            errors: [{ messageId: "unexpected" }]
+        },
+
+        // Optional chaining
+        {
+            code: "var v = (obj?.aaa)?.aaa",
+            output: "var v = obj?.aaa?.aaa",
+            parserOptions: { ecmaVersion: 2020 },
+            errors: [{ messageId: "unexpected" }]
+        },
+        {
+            code: "var v = (obj.aaa)?.aaa",
+            output: "var v = obj.aaa?.aaa",
+            parserOptions: { ecmaVersion: 2020 },
+            errors: [{ messageId: "unexpected" }]
+        },
+        {
+            code: "var foo = (function(){})?.call()",
+            output: "var foo = function(){}?.call()",
+            options: ["all", { enforceForFunctionPrototypeMethods: true }],
+            parserOptions: { ecmaVersion: 2020 },
+            errors: [{ messageId: "unexpected" }]
+        },
+        {
+            code: "var foo = (function(){}?.call())",
+            output: "var foo = function(){}?.call()",
+            options: ["all", { enforceForFunctionPrototypeMethods: true }],
             parserOptions: { ecmaVersion: 2020 },
             errors: [{ messageId: "unexpected" }]
         }

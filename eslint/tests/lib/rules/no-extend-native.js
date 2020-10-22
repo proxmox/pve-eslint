@@ -37,6 +37,7 @@ ruleTester.run("no-extend-native", rule, {
             code: "Object.prototype.g = 0",
             options: [{ exceptions: ["Object"] }]
         },
+        "obj[Object.prototype] = 0",
 
         // https://github.com/eslint/eslint/issues/4438
         "Object.defineProperty()",
@@ -47,6 +48,12 @@ ruleTester.run("no-extend-native", rule, {
         {
             code: "{ let Object = function() {}; Object.prototype.p = 0 }",
             parserOptions: { ecmaVersion: 6 }
+        },
+
+        // TODO(mdjermanovic): This test should become `invalid` in the next major version, when we upgrade the `globals` package.
+        {
+            code: "WeakRef.prototype.p = 0",
+            env: { es2021: true }
         }
     ],
     invalid: [{
@@ -137,5 +144,46 @@ ruleTester.run("no-extend-native", rule, {
             data: { builtin: "Object" },
             type: "AssignmentExpression"
         }]
-    }]
+    },
+
+    // Optional chaining
+    {
+        code: "(Object?.prototype).p = 0",
+        parserOptions: { ecmaVersion: 2020 },
+        errors: [{ messageId: "unexpected", data: { builtin: "Object" } }]
+    },
+    {
+        code: "Object.defineProperty(Object?.prototype, 'p', { value: 0 })",
+        parserOptions: { ecmaVersion: 2020 },
+        errors: [{ messageId: "unexpected", data: { builtin: "Object" } }]
+    },
+    {
+        code: "Object?.defineProperty(Object.prototype, 'p', { value: 0 })",
+        parserOptions: { ecmaVersion: 2020 },
+        errors: [{ messageId: "unexpected", data: { builtin: "Object" } }]
+    },
+    {
+        code: "(Object?.defineProperty)(Object.prototype, 'p', { value: 0 })",
+        parserOptions: { ecmaVersion: 2020 },
+        errors: [{ messageId: "unexpected", data: { builtin: "Object" } }]
+    },
+
+    // Logical assignments
+    {
+        code: "Array.prototype.p &&= 0",
+        parserOptions: { ecmaVersion: 2021 },
+        errors: [{ messageId: "unexpected", data: { builtin: "Array" } }]
+    },
+    {
+        code: "Array.prototype.p ||= 0",
+        parserOptions: { ecmaVersion: 2021 },
+        errors: [{ messageId: "unexpected", data: { builtin: "Array" } }]
+    },
+    {
+        code: "Array.prototype.p ??= 0",
+        parserOptions: { ecmaVersion: 2021 },
+        errors: [{ messageId: "unexpected", data: { builtin: "Array" } }]
+    }
+
+    ]
 });
