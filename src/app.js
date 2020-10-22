@@ -10,6 +10,7 @@ program
     .option('-c, --config <configfile>', 'uses <configfile> for eslint config instead.')
     .option('-e, --extend <configfile>', 'uses <configfile> ontop of default eslint config.')
     .option('-f, --fix', 'if set, fixes will be applied.')
+    .option('-s, --strict', 'if set, also exit uncleanly on warnings')
     .option('--output-config', 'if set, only output the config as JSON and exit.')
     ;
 
@@ -311,6 +312,9 @@ report.results.forEach(function(result) {
 	let msg = `: line ${color.bold(e.line)} col ${color.bold(e.column)}: ${e.ruleId}`;
 	if (e.severity === 1) {
 	    msg = color.yellow("WARN" + msg);
+	    if (exitcode < 1 && !!program.strict) {
+		exitcode = 1;
+	    }
 	} else if (e.severity === 2) {
 	    msg = color.red("ERR " + msg);
 	    if (exitcode < 1) {
