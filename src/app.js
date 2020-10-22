@@ -215,9 +215,9 @@ const defaultConfig = {
 		["&", "|", "^", "~", "<<", ">>", ">>>"],
 		["==", "!=", "===", "!==", ">", ">=", "<", "<="],
 		["&&", "||"],
-		["in", "instanceof"]
+		["in", "instanceof"],
 	    ],
-	    "allowSamePrecedence": true
+	    "allowSamePrecedence": true,
 	}],
 	"no-multiple-empty-lines": "warn",
 	"no-trailing-spaces": "warn",
