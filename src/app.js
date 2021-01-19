@@ -41,7 +41,7 @@ if (!paths.length) {
 
 const defaultConfig = {
     parserOptions: {
-	ecmaVersion: 2017,
+	ecmaVersion: 2018,
 	ecmaFeatures: {
 	    impliedStrict: true,
 	},
