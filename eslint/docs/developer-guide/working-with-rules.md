@@ -142,7 +142,7 @@ Additionally, the `context` object has the following methods:
 * `getScope()` - returns the [scope](./scope-manager-interface.md#scope-interface) of the currently-traversed node. This information can be used to track references to variables.
 * `getSourceCode()` - returns a [`SourceCode`](#context-getsourcecode) object that you can use to work with the source that was passed to ESLint.
 * `markVariableAsUsed(name)` - marks a variable with the given name in the current scope as used. This affects the [no-unused-vars](../rules/no-unused-vars.md) rule. Returns `true` if a variable with the given name was found and marked as used, otherwise `false`.
-* `report(descriptor)` - reports a problem in the code (see the [dedicated section](#context-report)).
+* `report(descriptor)` - reports a problem in the code (see the [dedicated section](#contextreport)).
 
 **Note:** Earlier versions of ESLint supported additional methods on the `context` object. Those methods were removed in the new format and should not be relied upon.
 
@@ -567,7 +567,7 @@ Please note that the following methods have been deprecated and will be removed 
 
 ### Options Schemas
 
-Rules may export a `schema` property, which is a [JSON schema](http://json-schema.org/) format description of a rule's options which will be used by ESLint to validate configuration options and prevent invalid or unexpected inputs before they are passed to the rule in `context.options`.
+Rules may export a `schema` property, which is a [JSON schema](https://json-schema.org/) format description of a rule's options which will be used by ESLint to validate configuration options and prevent invalid or unexpected inputs before they are passed to the rule in `context.options`.
 
 There are two formats for a rule's exported `schema`. The first is a full JSON Schema object describing all possible options the rule accepts, including the rule's error level as the first argument and any optional arguments thereafter.
 
@@ -597,7 +597,7 @@ module.exports = {
 
 In the preceding example, the error level is assumed to be the first argument. It is followed by the first optional argument, a string which may be either `"always"` or `"never"`. The final optional argument is an object, which may have a Boolean property named `exceptRange`.
 
-To learn more about JSON Schema, we recommend looking at some examples in [website](http://json-schema.org/learn/) to start, and also reading [Understanding JSON Schema](http://spacetelescope.github.io/understanding-json-schema/) (a free ebook).
+To learn more about JSON Schema, we recommend looking at some examples in [website](https://json-schema.org/learn/) to start, and also reading [Understanding JSON Schema](https://json-schema.org/understanding-json-schema/) (a free ebook).
 
 **Note:** Currently you need to use full JSON Schema object rather than array in case your schema has references ($ref), because in case of array format ESLint transforms this array into a single schema without updating references that makes them incorrect (they are ignored).
 
@@ -719,6 +719,8 @@ Rule   | Time (ms) | Relative
 :------|----------:|--------:
 quotes |    18.066 |   100.0%
 ```
+
+To see a longer list of results (more than 10), set the environment variable to another value such as `TIMING=50` or `TIMING=all`.
 
 ## Rule Naming Conventions
 
