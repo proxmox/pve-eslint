@@ -1,3 +1,41 @@
+pve-eslint (7.18.0-1) unstable; urgency=medium
+
+  [ Proxmox Support Team ]
+  * update to 7.18.0 upstream release
+  * switch from ECMA script 2017 to 2018, allowing use of spread operator,
+    async iteration, final prototype for Promise and some RegExp features
+
+  [ ESLint ]
+  * relevant changes since 7.12.1
+    + Upgrade: @eslint/eslintrc to improve error message for invalid extends (#14009) (Milos Djermanovic)
+    + Update: check logical assignment operators in the complexity rule (#13979) (Milos Djermanovic)
+    + Fix: --init crash on question to upgrade/downgrade ESLint (fixes #13978) (#13995) (Milos Djermanovic)
+    + Fix: no-extra-parens false positive with `let` identifier in for-loop (#13981) (Milos Djermanovic)
+    + Upgrade: Bump lodash to fix security issue (#13993) (Frederik Prijck)
+    + Update: check logical assignment in no-constant-condition (#13946) (Milos Djermanovic)
+    + Update: use regexpp's default ecmaVersion in no-control-regex (#13969) (Milos Djermanovic)
+    + Fix: use regexpp's default ecmaVersion in no-invalid-regexp (#13968) (Milos Djermanovic)
+    + Update: add autofix to rule multiline-ternary (#13958) (薛定谔的猫)
+    + Fix: no-useless-escape wrong loc and fix with CRLF in template elements (#13953) (Milos Djermanovic)
+    + Fix: one-var shouldn't split declaration if it isn't in a statement list (#13959) (Milos Djermanovic)
+    + Update: fix false negative of no-extra-parens with NewExpression (#13930) (Milos Djermanovic)
+    + Fix: require-atomic-updates false positive across await (fixes #11954) (#13915) (buhi)
+    + Fix: no-constant-condition false positives with unary expressions (#13927) (Milos Djermanovic)
+    + Fix: false positive with await and ** in no-extra-parens (fixes #12739) (#13923) (Milos Djermanovic)
+    + Upgrade: table@6.0.4 (#13920) (Rouven Weßling)
+    + Fix: prefer-exponentiation-operator invalid autofix with await (#13924) (Milos Djermanovic)
+    + Upgrade: @eslint/esintrc and espree for bug fixes (refs #13878) (#13908) (Brandon Mills)
+    + Upgrade: file-entry-cache@6.0.0 (#13877) (Rouven Weßling)
+    + New: no-unsafe-optional-chaining rule (fixes #13431) (#13859) (YeonJuan)
+    + Fix: one-var autofixing for export (fixes #13834) (#13891) (Anix)
+    + Update: fix 'skip' options in no-irregular-whitespace (fixes #13852) (#13853) (Milos Djermanovic)
+    + New: Add no-nonoctal-decimal-escape rule (fixes #13765) (#13845) (Milos Djermanovic)
+    + Fix: enable debug logs for @eslint/eslintrc (fixes #13850) (#13861) (Milos Djermanovic)
+    + Fix: no-useless-constructor crash on bodyless constructor (fixes #13830) (#13842) (Ari Perkkiö)
+    + New: Configurable List Size For Per-Rule Performance Metrics (#13812) (Bryan Mishkin)
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 19 Jan 2021 17:07:51 +0100
+
 pve-eslint (7.12.1-1) unstable; urgency=medium
 
   [ Proxmox Support Team ]
