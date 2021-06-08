@@ -2206,6 +2206,26 @@ ruleTester.run("indent", rule, {
         },
         {
             code: unIndent`
+              condition1
+                ? condition2
+                  ? Promise.resolve(1)
+                  : Promise.resolve(2)
+                : Promise.resolve(3)
+            `,
+            options: [2, { offsetTernaryExpressions: true }]
+        },
+        {
+            code: unIndent`
+              condition1
+                ? Promise.resolve(1)
+                : condition2
+                  ? Promise.resolve(2)
+                  : Promise.resolve(3)
+            `,
+            options: [2, { offsetTernaryExpressions: true }]
+        },
+        {
+            code: unIndent`
               condition
               \t? () => {
               \t\t\treturn true
@@ -4125,7 +4145,7 @@ ruleTester.run("indent", rule, {
         //----------------------------------------------------------------------
         // JSX tests
         // https://github.com/eslint/eslint/issues/8425
-        // Some of the following tests are adapted from the the tests in eslint-plugin-react.
+        // Some of the following tests are adapted from the tests in eslint-plugin-react.
         // License: https://github.com/yannickcr/eslint-plugin-react/blob/7ca9841f22d599f447a27ef5b2a97def9229d6c8/LICENSE
         //----------------------------------------------------------------------
 
@@ -9825,7 +9845,7 @@ ruleTester.run("indent", rule, {
 
         //----------------------------------------------------------------------
         // JSX tests
-        // Some of the following tests are adapted from the the tests in eslint-plugin-react.
+        // Some of the following tests are adapted from the tests in eslint-plugin-react.
         // License: https://github.com/yannickcr/eslint-plugin-react/blob/7ca9841f22d599f447a27ef5b2a97def9229d6c8/LICENSE
         //----------------------------------------------------------------------
 

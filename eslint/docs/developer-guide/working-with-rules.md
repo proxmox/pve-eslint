@@ -60,7 +60,7 @@ The source file for a rule exports an object with the following properties.
 
     * `description` (string) provides the short description of the rule in the [rules index](../rules/)
     * `category` (string) specifies the heading under which the rule is listed in the [rules index](../rules/)
-    * `recommended` (boolean) is whether the `"extends": "eslint:recommended"` property in a [configuration file](../user-guide/configuring.md#extending-configuration-files) enables the rule
+    * `recommended` (boolean) is whether the `"extends": "eslint:recommended"` property in a [configuration file](../user-guide/configuring/configuration-files.md#extending-configuration-files) enables the rule
     * `url` (string) specifies the URL at which the full documentation can be accessed
     * `suggestion` (boolean) specifies whether rules can return suggestions (defaults to false if omitted)
 
@@ -70,7 +70,7 @@ The source file for a rule exports an object with the following properties.
 
     **Important:** the `fixable` property is mandatory for fixable rules. If this property isn't specified, ESLint will throw an error whenever the rule attempts to produce a fix. Omit the `fixable` property if the rule is not fixable.
 
-* `schema` (array) specifies the [options](#options-schemas) so ESLint can prevent invalid [rule configurations](../user-guide/configuring.md#configuring-rules)
+* `schema` (array) specifies the [options](#options-schemas) so ESLint can prevent invalid [rule configurations](../user-guide/configuring/rules.md#configuring-rules)
 
 * `deprecated` (boolean) indicates whether the rule has been deprecated.  You may omit the `deprecated` property if the rule has not been deprecated.
 
@@ -117,10 +117,10 @@ module.exports = {
 
 The `context` object contains additional functionality that is helpful for rules to do their jobs. As the name implies, the `context` object contains information that is relevant to the context of the rule. The `context` object has the following properties:
 
-* `parserOptions` - the parser options configured for this run (more details [here](../user-guide/configuring.md#specifying-parser-options)).
+* `parserOptions` - the parser options configured for this run (more details [here](../user-guide/configuring/language-options.md#specifying-parser-options)).
 * `id` - the rule ID.
-* `options` - an array of the [configured options](/docs/user-guide/configuring.md#configuring-rules) for this rule. This array does not include the rule severity. For more information, see [here](#contextoptions).
-* `settings` - the [shared settings](/docs/user-guide/configuring.md#adding-shared-settings) from configuration.
+* `options` - an array of the [configured options](/docs/user-guide/configuring/rules.md#configuring-rules) for this rule. This array does not include the rule severity. For more information, see [here](#contextoptions).
+* `settings` - the [shared settings](/docs/user-guide/configuring/configuration-files.md#adding-shared-settings) from configuration.
 * `parserPath` - the name of the `parser` from configuration.
 * `parserServices` - an object containing parser-provided services for rules. The default parser does not provide any services. However, if a rule is intended to be used with a custom parser, it could use `parserServices` to access anything provided by that parser. (For example, a TypeScript parser could provide the ability to get the computed type of a given node.)
 
@@ -139,8 +139,9 @@ Additionally, the `context` object has the following methods:
     * If the node is an `ImportSpecifier`, `ImportDefaultSpecifier`, or `ImportNamespaceSpecifier`, the declared variable is returned.
     * Otherwise, if the node does not declare any variables, an empty array is returned.
 * `getFilename()` - returns the filename associated with the source.
+* `getPhysicalFilename()` - when linting a file, it returns the full path of the file on disk without any code block information. When linting text, it returns the value passed to `—stdin-filename` or `<text>` if not specified.
 * `getScope()` - returns the [scope](./scope-manager-interface.md#scope-interface) of the currently-traversed node. This information can be used to track references to variables.
-* `getSourceCode()` - returns a [`SourceCode`](#context-getsourcecode) object that you can use to work with the source that was passed to ESLint.
+* `getSourceCode()` - returns a [`SourceCode`](#contextgetsourcecode) object that you can use to work with the source that was passed to ESLint.
 * `markVariableAsUsed(name)` - marks a variable with the given name in the current scope as used. This affects the [no-unused-vars](../rules/no-unused-vars.md) rule. Returns `true` if a variable with the given name was found and marked as used, otherwise `false`.
 * `report(descriptor)` - reports a problem in the code (see the [dedicated section](#contextreport)).
 
@@ -375,7 +376,7 @@ context.report({
 {% endraw %}
 ```
 
-Note: Suggestions will be applied as a stand-alone change, without triggering multipass fixes. Each suggestion should focus on a singular change in the code and should not try to conform to user defined styles. For example, if a suggestion is adding a new statement into the codebase, it should not try to match correct indentation, or confirm to user preferences on presence/absence of semicolons. All of those things can be corrected by multipass autofix when the user triggers it.
+Note: Suggestions will be applied as a stand-alone change, without triggering multipass fixes. Each suggestion should focus on a singular change in the code and should not try to conform to user defined styles. For example, if a suggestion is adding a new statement into the codebase, it should not try to match correct indentation, or conform to user preferences on presence/absence of semicolons. All of those things can be corrected by multipass autofix when the user triggers it.
 
 Best practices for suggestions:
 
@@ -737,5 +738,5 @@ The thing that makes ESLint different from other linters is the ability to defin
 Runtime rules are written in the same format as all other rules. Create your rule as you would any other and then follow these steps:
 
 1. Place all of your runtime rules in the same directory (e.g., `eslint_rules`).
-2. Create a [configuration file](../user-guide/configuring.md) and specify your rule ID error level under the `rules` key. Your rule will not run unless it has a value of `"warn"` or `"error"` in the configuration file.
+2. Create a [configuration file](../user-guide/configuring/) and specify your rule ID error level under the `rules` key. Your rule will not run unless it has a value of `"warn"` or `"error"` in the configuration file.
 3. Run the [command line interface](../user-guide/command-line-interface.md) using the `--rulesdir` option to specify the location of your runtime rules.

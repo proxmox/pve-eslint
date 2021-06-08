@@ -2650,6 +2650,130 @@ describe("ESLint", () => {
                     assert.deepStrictEqual(result, cachedResult, "result is the same with or without cache");
                 });
             });
+
+            describe("cacheStrategy", () => {
+                it("should detect changes using a file's modification time when set to 'metadata'", async () => {
+                    const cacheLocation = getFixturePath(".eslintcache");
+
+                    doDelete(cacheLocation);
+
+                    eslint = new ESLint({
+                        cwd: path.join(fixtureDir, ".."),
+                        useEslintrc: false,
+
+                        // specifying cache true the cache will be created
+                        cache: true,
+                        cacheLocation,
+                        cacheStrategy: "metadata",
+                        overrideConfig: {
+                            rules: {
+                                "no-console": 0,
+                                "no-unused-vars": 2
+                            }
+                        },
+                        extensions: ["js"]
+                    });
+                    const badFile = fs.realpathSync(getFixturePath("cache/src", "fail-file.js"));
+                    const goodFile = fs.realpathSync(getFixturePath("cache/src", "test-file.js"));
+
+                    await eslint.lintFiles([badFile, goodFile]);
+                    let fileCache = fCache.createFromFile(cacheLocation);
+                    const entries = fileCache.normalizeEntries([badFile, goodFile]);
+
+                    entries.forEach(entry => {
+                        assert(entry.changed === false, `the entry for ${entry.key} is initially unchanged`);
+                    });
+
+                    // this should result in a changed entry
+                    shell.touch(goodFile);
+                    fileCache = fCache.createFromFile(cacheLocation);
+                    assert(fileCache.getFileDescriptor(badFile).changed === false, `the entry for ${badFile} is unchanged`);
+                    assert(fileCache.getFileDescriptor(goodFile).changed === true, `the entry for ${goodFile} is changed`);
+                });
+
+                it("should not detect changes using a file's modification time when set to 'content'", async () => {
+                    const cacheLocation = getFixturePath(".eslintcache");
+
+                    doDelete(cacheLocation);
+
+                    eslint = new ESLint({
+                        cwd: path.join(fixtureDir, ".."),
+                        useEslintrc: false,
+
+                        // specifying cache true the cache will be created
+                        cache: true,
+                        cacheLocation,
+                        cacheStrategy: "content",
+                        overrideConfig: {
+                            rules: {
+                                "no-console": 0,
+                                "no-unused-vars": 2
+                            }
+                        },
+                        extensions: ["js"]
+                    });
+                    const badFile = fs.realpathSync(getFixturePath("cache/src", "fail-file.js"));
+                    const goodFile = fs.realpathSync(getFixturePath("cache/src", "test-file.js"));
+
+                    await eslint.lintFiles([badFile, goodFile]);
+                    let fileCache = fCache.createFromFile(cacheLocation, true);
+                    let entries = fileCache.normalizeEntries([badFile, goodFile]);
+
+                    entries.forEach(entry => {
+                        assert(entry.changed === false, `the entry for ${entry.key} is initially unchanged`);
+                    });
+
+                    // this should NOT result in a changed entry
+                    shell.touch(goodFile);
+                    fileCache = fCache.createFromFile(cacheLocation, true);
+                    entries = fileCache.normalizeEntries([badFile, goodFile]);
+                    entries.forEach(entry => {
+                        assert(entry.changed === false, `the entry for ${entry.key} remains unchanged`);
+                    });
+                });
+
+                it("should detect changes using a file's contents when set to 'content'", async () => {
+                    const cacheLocation = getFixturePath(".eslintcache");
+
+                    doDelete(cacheLocation);
+
+                    eslint = new ESLint({
+                        cwd: path.join(fixtureDir, ".."),
+                        useEslintrc: false,
+
+                        // specifying cache true the cache will be created
+                        cache: true,
+                        cacheLocation,
+                        cacheStrategy: "content",
+                        overrideConfig: {
+                            rules: {
+                                "no-console": 0,
+                                "no-unused-vars": 2
+                            }
+                        },
+                        extensions: ["js"]
+                    });
+                    const badFile = fs.realpathSync(getFixturePath("cache/src", "fail-file.js"));
+                    const goodFile = fs.realpathSync(getFixturePath("cache/src", "test-file.js"));
+                    const goodFileCopy = path.resolve(`${path.dirname(goodFile)}`, "test-file-copy.js");
+
+                    shell.cp(goodFile, goodFileCopy);
+
+                    await eslint.lintFiles([badFile, goodFileCopy]);
+                    let fileCache = fCache.createFromFile(cacheLocation, true);
+                    const entries = fileCache.normalizeEntries([badFile, goodFileCopy]);
+
+                    entries.forEach(entry => {
+                        assert(entry.changed === false, `the entry for ${entry.key} is initially unchanged`);
+                    });
+
+                    // this should result in a changed entry
+                    shell.sed("-i", "abc", "xzy", goodFileCopy);
+                    fileCache = fCache.createFromFile(cacheLocation, true);
+                    assert(fileCache.getFileDescriptor(badFile).changed === false, `the entry for ${badFile} is unchanged`);
+                    assert(fileCache.getFileDescriptor(goodFileCopy).changed === true, `the entry for ${goodFileCopy} is changed`);
+                });
+            });
         });
 
         describe("processors", () => {
@@ -2789,6 +2913,54 @@ describe("ESLint", () => {
                 });
                 const results = await eslint.lintText("function a() {console.log(\"Test\");}", { filePath: "tests/fixtures/processors/test/test-processor.txt" });
 
+                assert.strictEqual(results[0].messages[0].message, "'b' is defined but never used.");
+                assert.strictEqual(results[0].messages[0].ruleId, "post-processed");
+            });
+
+            it("should run processors when calling lintText with processor resolves same extension but different content correctly", async () => {
+                let count = 0;
+
+                eslint = new ESLint({
+                    useEslintrc: false,
+                    overrideConfig: {
+                        plugins: ["test-processor"],
+                        overrides: [{
+                            files: ["**/*.txt/*.txt"],
+                            rules: {
+                                "no-console": 2,
+                                "no-unused-vars": 2
+                            }
+                        }]
+                    },
+                    extensions: ["txt"],
+                    ignore: false,
+                    plugins: {
+                        "test-processor": {
+                            processors: {
+                                ".txt": {
+                                    preprocess(text) {
+                                        count++;
+                                        return [
+                                            {
+
+                                                // it will be run twice, and text will be as-is at the second time, then it will not run third time
+                                                text: text.replace("a()", "b()"),
+                                                filename: ".txt"
+                                            }
+                                        ];
+                                    },
+                                    postprocess(messages) {
+                                        messages[0][0].ruleId = "post-processed";
+                                        return messages[0];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                const results = await eslint.lintText("function a() {console.log(\"Test\");}", { filePath: "tests/fixtures/processors/test/test-processor.txt" });
+
+                assert.strictEqual(count, 2);
                 assert.strictEqual(results[0].messages[0].message, "'b' is defined but never used.");
                 assert.strictEqual(results[0].messages[0].ruleId, "post-processed");
             });
@@ -3886,6 +4058,26 @@ describe("ESLint", () => {
             assert.deepStrictEqual(actualConfig, expectedConfig);
         });
 
+        it("should return the config for a file that doesn't exist", async () => {
+            const engine = new ESLint();
+            const filePath = getFixturePath("does_not_exist.js");
+            const existingSiblingFilePath = getFixturePath("single-quoted.js");
+            const actualConfig = await engine.calculateConfigForFile(filePath);
+            const expectedConfig = await engine.calculateConfigForFile(existingSiblingFilePath);
+
+            assert.deepStrictEqual(actualConfig, expectedConfig);
+        });
+
+        it("should return the config for a virtual file that is a child of an existing file", async () => {
+            const engine = new ESLint();
+            const parentFileName = "single-quoted.js";
+            const filePath = getFixturePath(parentFileName, "virtual.js"); // single-quoted.js/virtual.js
+            const parentFilePath = getFixturePath(parentFileName);
+            const actualConfig = await engine.calculateConfigForFile(filePath);
+            const expectedConfig = await engine.calculateConfigForFile(parentFilePath);
+
+            assert.deepStrictEqual(actualConfig, expectedConfig);
+        });
 
         it("should return the config when run from within a subdir", async () => {
             const options = {
