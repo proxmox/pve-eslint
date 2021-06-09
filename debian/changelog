@@ -1,3 +1,62 @@
+pve-eslint (7.28.0-1) unstable; urgency=medium
+
+  [ Proxmox Support Team ]
+  * update to 7.28.0 upstream release
+  * switch from ECMA script 2018 to 2020, allowing use of optional chaining
+    operator (?.), nullish coalescing operator (??) Promise.allSettled helper,
+    flat / flatMap for Arrays, Object.fromEntries, String trimming, BigInt and
+    matchAll on Strings.
+
+  [ ESLint ]
+  * relevant changes since 7.18.0
+    + Upgrade: @eslint/eslintrc to 0.4.2 (#14672) (Milos Djermanovic)
+    + Update: support multiline /*eslint-env*/ directives (fixes #14652) (#14660) (薛定谔的猫)
+    + Upgrade: glob-parent version in package.json (#14658) (Hamza Najeeb)
+    + Fix: no-implicit-coercion false positive with `String()` (fixes #14623) (#14641) (Milos Djermanovic)
+    + Fix: no-duplicate-imports allow unmergeable (fixes #12758, fixes #12760) (#14238) (Soufiane Boutahlil)
+    + New: add `getPhysicalFilename()` method to rule context (fixes #11989) (#14616) (Nitin Kumar)
+    + Fix: arrow-body-style crash with object pattern (fixes #14633) (#14635) (Milos Djermanovic)
+    + Update: no-unused-vars false negative with comma operator (fixes #14325) (#14354) (Nitin Kumar)
+    + Update: no-restricted-imports custom message for patterns (fixes #11843) (#14580) (Alex Holden)
+    + Upgrade: eslintrc for ModuleResolver fix (#14577) (Brandon Mills)
+    + Fix: track variables, not names in require-atomic-updates (fixes #14208) (#14282) (Patrick Ahmetovic)
+    + Fix: create `.eslintrc.cjs` for `module` type (#14304) (Nitin Kumar)
+    + Update: Add automated suggestion to `radix` rule for parsing decimals (#14291) (Bryan Mishkin)
+    + New: Include XO style guide in `eslint --init` (#14193) (Federico Brigante)
+    + Update: highlight last write reference for no-unused-vars (fixes #14324) (#14335) (Nitin Kumar)
+    + Update: lint code block with same extension but different content (#14227) (JounQin)
+    + Update: Add disallowTemplateShorthand option in no-implicit-coercion (#13579) (Remco Haszing)
+    + Fix: no-unused-vars ignoreRestSiblings check assignments (fixes #14163) (#14264) (YeonJuan)
+    + Update: add ignoreNonDeclaration to no-multi-assign rule (fixes #12545) (#14185) (t-mangoe)
+    + Update: add option "allowInParentheses" to no-sequences (fixes #14197) (#14199) (Daniel Rentz)
+    + Update: `--quiet` should not supress `--max-warnings` (fixes #14202) (#14242) (Milos Djermanovic)
+    + Fix: no-mixed-operators false positives with `? :` (fixes #14223) (#14226) (Milos Djermanovic)
+    + Fix: Clarify line breaks in object-curly-newline (fixes #14024) (#14063) (armin yahya)
+    + Update: eslint --env-info output os info (#14059) (薛定谔的猫)
+    + Update: throw error when fix range is invalid (#14142) (Jacob Bandes-Storch)
+    + Upgrade: Update lodash in package.json to V 4.17.21 (#14159) (Basem Al-Nabulsi)
+    + Update: report es2021 globals in no-extend-native (refs #13602) (#14177) (Milos Djermanovic)
+    + Upgrade: @eslint/eslintrc to 0.4.0 (#14147) (Brandon Mills)
+    + Upgrade: Puppeteer to 7.1.0 (#14122) (Tim van der Lippe)
+    + New: Implement cacheStrategy (refs eslint/rfcs#63) (#14119) (Manu Chambon)
+    + Update: do not ignore symbolic links (fixes #13551, fixes #13615) (#14126) (Pig Fang)
+    + Fix: pluralize 'line' to 'lines' in max-lines-per-function description (#14115) (Trevin Hofmann)
+    + Fix: Crash with esquery when using JSX (fixes #13639) (#14072) (Yosuke Ota)
+    + Update: add enforceForJSX option to no-unused-expressions rule (#14012) (Duncan Beevers)
+    + Fix: `--init` autoconfig shouldn't add deprecated rules (fixes #14017) (#14060) (Milos Djermanovic)
+    + Fix: Support ENOTDIR error code in the folder existence checking utility (#13973) (Constantine Genchevsky)
+    + Upgrade: pin @babel/code-frame@7.12.11 (#14067) (Milos Djermanovic)
+    + Build: package.json update for eslint-config-eslint release (ESLint Jenkins)
+    + Update: add shadowed variable loc to message in no-shadow (fixes #13646) (#13841) (t-mangoe)
+    + Update: fix `let` logic in for-in and for-of loops in no-extra-parens (#14011) (Milos Djermanovic)
+    + Fix: no-useless-rename invalid autofix with parenthesized identifiers (#14032) (Milos Djermanovic)
+    + Fix: nested indenting for offsetTernaryExpressions: true (fixes #13971) (#13972) (Chris Brody)
+    + Update: check ternary `:` even if `?` was reported in space-infix-ops (#13963) (Milos Djermanovic)
+    + Fix: extend prefer-const fixer range to whole declaration (fixes #13899) (#14033) (Nitin Kumar)
+    + Update: fix no-invalid-regexp false negatives with no flags specified (#14018) (Milos Djermanovic)
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 09 Jun 2021 16:37:05 +0200
+
 pve-eslint (7.18.0-1) unstable; urgency=medium
 
   [ Proxmox Support Team ]
