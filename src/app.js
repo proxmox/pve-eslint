@@ -284,6 +284,7 @@ const cli = new eslint.CLIEngine({
     baseConfig: config,
     useEslintrc: true,
     fix: !!program.fix,
+    cwd: process.cwd(),
 });
 
 const report = cli.executeOnFiles(paths);
