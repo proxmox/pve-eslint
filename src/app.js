@@ -41,7 +41,7 @@ if (!paths.length) {
 
 const defaultConfig = {
     parserOptions: {
-	ecmaVersion: 2018,
+	ecmaVersion: 2020,
 	ecmaFeatures: {
 	    impliedStrict: true,
 	},
@@ -49,7 +49,7 @@ const defaultConfig = {
     env: {
 	browser: true,
 	node: true,
-	es2017: true,
+	es2020: true, // automatically sets ecmaVersion to 2020 and allows es2020 globals
     },
     globals: {
 	Ext: "writable",
@@ -287,10 +287,9 @@ const cli = new eslint.CLIEngine({
 });
 
 const report = cli.executeOnFiles(paths);
+
 let exitcode = 0;
-let files_err = [];
-let files_warn = [];
-let files_ok = [];
+let files_err = [], files_warn = [], files_ok = [];
 let fixes = 0;
 console.log('------------------------------------------------------------');
 report.results.forEach(function(result) {
