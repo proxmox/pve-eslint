@@ -4,6 +4,7 @@
     "files": [
 	"index.js",
 	"bin/app.js",
-	"lib/eslint.js"
+	"lib/eslint.js",
+	"lib/worker.js"
     ]
 }

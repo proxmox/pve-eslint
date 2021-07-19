@@ -6,6 +6,7 @@
 const path = require('path');
 const color = require('colors');
 const program = require('commander');
+const worker = require('worker_threads');
 const eslint = require('pve-eslint');
 
 program
@@ -14,6 +15,7 @@ program
     .option('-e, --extend <configfile>', 'uses <configfile> ontop of default eslint config.')
     .option('-f, --fix', 'if set, fixes will be applied.')
     .option('-s, --strict', 'if set, also exit uncleanly on warnings')
+    .option('-t, --threads <threads>', 'how many worker_threads should be used (default=4)')
     .option('--output-config', 'if set, only output the config as JSON and exit.')
     ;
 
@@ -40,6 +42,11 @@ let paths = program.args;
 
 if (!paths.length) {
     paths = [process.cwd()];
+}
+
+let threadCount = 4;
+if (program.threads) {
+    threadCount = program.threads;
 }
 
 const defaultConfig = {
@@ -283,20 +290,36 @@ if (program.outputConfig) {
     process.exit(0);
 }
 
-const cli = new eslint.CLIEngine({
+const cliOptions = {
     baseConfig: config,
     useEslintrc: true,
     fix: !!program.fix,
     cwd: process.cwd(),
-});
+};
 
-const report = cli.executeOnFiles(paths);
+let promises = [];
+let filesPerThread = Math.round(paths.length / threadCount);
+for (let i = 0; i < (threadCount - 1); i++) {
+    let files = paths.splice(0, filesPerThread);
+    promises.push(eslint.createWorker({
+	cliOptions,
+	files
+    }));
+}
+
+// the remaining paths
+promises.push(eslint.createWorker({
+    cliOptions,
+    files: paths
+}));
+
+let results = (await Promise.all(promises)).map(res => res.results).flat(1);
 
 let exitcode = 0;
 let files_err = [], files_warn = [], files_ok = [];
 let fixes = 0;
 console.log('------------------------------------------------------------');
-report.results.forEach(function(result) {
+results.forEach(function(result) {
     let filename = path.relative(process.cwd(), result.filePath);
     let msgs = result.messages;
     let max_sev = 0;
@@ -348,7 +371,7 @@ report.results.forEach(function(result) {
     console.log('------------------------------------------------------------');
 });
 
-if (report.results.length > 1) {
+if (results.length > 1) {
     console.log(`${color.bold(files_ok.length + files_err.length)} files:`);
     if (files_err.length > 0) {
 	console.log(color.red(` ${color.bold(files_err.length)} files have Errors`));
@@ -367,7 +390,7 @@ console.log('------------------------------------------------------------');
 if (program.fix) {
     if (fixes > 0) {
 	console.log(`Writing ${color.bold(fixes)} fixed files...`);
-	eslint.CLIEngine.outputFixes(report);
+	eslint.CLIEngine.outputFixes({ results });
 	console.log('Done');
     } else {
 	console.log("No fixable Errors/Warnings found.");
