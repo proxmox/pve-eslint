@@ -2,13 +2,16 @@ Source: pve-eslint
 Section: devel
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
-Build-Depends: debhelper (>= 12~)
+Build-Depends: debhelper (>= 12~),
+               nodejs,
+               pkg-js-tools (>= 0.8.11)
 Standards-Version: 4.3.0
 Homepage: http://www.proxmox.com
 
 Package: pve-eslint
 Architecture: all
-Depends: node-commander, node-colors, nodejs, ${misc:Depends},
+Depends: node-commander, node-colors, nodejs (>= ${nodejs:Version}), ${misc:Depends},
+Provides: ${nodejs:Provides}
 Description: ESLint for Proxmox Virtual Environment development
  This package contains a version of eslint used to develop the
  Proxmox Virtual Environment, and other Proxmox projects, web GUI.

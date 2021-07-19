@@ -1,0 +1,9 @@
+{
+    "name": "pve-eslint",
+    "version": "7.28.0",
+    "files": [
+	"index.js",
+	"bin/app.js",
+	"lib/eslint.js"
+    ]
+}

@@ -1,4 +1,7 @@
 #!/usr/bin/make -f
 
 %:
-	dh $@
+	dh $@ --with nodejs
+
+execute_after_dh_fixperms:
+	chmod --recursive a+x -- debian/*/usr/share/nodejs/pve-eslint/bin/*

@@ -49,7 +49,7 @@ download:
 # NOTE: needs npm installed, downloads packages from npm
 .PHONY: buildupstream
 buildupstream: ${BUILDSRC}
-	cp ${BUILDSRC}/build/eslint.js ${SRCDIR}/eslint.js
+	cp ${BUILDSRC}/build/eslint.js ${SRCDIR}/lib/eslint.js
 
 ${BUILDSRC}: ${UPSTREAM} patches
 	rm -rf $@

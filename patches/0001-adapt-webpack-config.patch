@@ -3,21 +3,20 @@ From: Dominik Csapak <d.csapak@proxmox.com>
 Date: Thu, 2 Apr 2020 07:10:18 +0000
 Subject: [PATCH] adapt webpack config
 
-changes to 'var' from 'umd' since we want to use it in the same file
 adds 'cli-engine' to build (we use it in our wrapper)
 and target 'node' since we will use it on the cli
 
 Signed-off-by: Dominik Csapak <d.csapak@proxmox.com>
 ---
- webpack.config.js | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ webpack.config.js | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/webpack.config.js b/webpack.config.js
-index 29d60cb4..95027075 100644
+index a22c99b..9209159 100644
 --- a/webpack.config.js
 +++ b/webpack.config.js
-@@ -2,14 +2,14 @@
- 
+@@ -4,8 +4,9 @@ const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
+ /** @type {import("webpack").Configuration} */
  module.exports = {
      mode: "none",
 +    target: "node",
@@ -27,13 +26,5 @@ index 29d60cb4..95027075 100644
      },
      output: {
          filename: "[name].js",
-         library: "[name]",
--        libraryTarget: "umd",
--        globalObject: "this"
-+        libraryTarget: "var"
-     },
-     module: {
-         rules: [
 -- 
 2.20.1
-

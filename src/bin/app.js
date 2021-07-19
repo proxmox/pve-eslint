@@ -1,9 +1,12 @@
-(function() {
+#!/usr/bin/env node
+
+(async function(){
 'use strict';
 
 const path = require('path');
 const color = require('colors');
 const program = require('commander');
+const eslint = require('pve-eslint');
 
 program
     .usage('[options] [<file(s) ...>]')
