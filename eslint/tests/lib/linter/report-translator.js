@@ -368,6 +368,35 @@ describe("createReportTranslator", () => {
             );
         });
 
+        it("should respect ranges of empty insertions when merging fixes to one.", () => {
+            const reportDescriptor = {
+                node,
+                loc: location,
+                message,
+                *fix() {
+                    yield { range: [4, 5], text: "cd" };
+                    yield { range: [2, 2], text: "" };
+                    yield { range: [7, 7], text: "" };
+                }
+            };
+
+            assert.deepStrictEqual(
+                translateReport(reportDescriptor),
+                {
+                    ruleId: "foo-rule",
+                    severity: 2,
+                    message: "foo",
+                    line: 2,
+                    column: 1,
+                    nodeType: "ExpressionStatement",
+                    fix: {
+                        range: [2, 7],
+                        text: "o\ncdar"
+                    }
+                }
+            );
+        });
+
         it("should pass through fixes if only one is present", () => {
             const reportDescriptor = {
                 node,
@@ -1037,7 +1066,7 @@ describe("createReportTranslator", () => {
 
             for (const badRange of [[0], [0, null], [null, 0], [void 0, 1], [0, void 0], [void 0, void 0], []]) {
                 assert.throws(
-                    // eslint-disable-next-line no-loop-func
+                    // eslint-disable-next-line no-loop-func -- Using arrow functions
                     () => translateReport(
                         { node, messageId: "testMessage", fix: () => ({ range: badRange, text: "foo" }) }
                     ),
@@ -1045,7 +1074,7 @@ describe("createReportTranslator", () => {
                 );
 
                 assert.throws(
-                    // eslint-disable-next-line no-loop-func
+                    // eslint-disable-next-line no-loop-func -- Using arrow functions
                     () => translateReport(
                         {
                             node,

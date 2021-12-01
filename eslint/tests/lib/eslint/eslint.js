@@ -19,9 +19,14 @@ const fCache = require("file-entry-cache");
 const sinon = require("sinon");
 const proxyquire = require("proxyquire").noCallThru().noPreserveCache();
 const shell = require("shelljs");
-const { CascadingConfigArrayFactory } = require("@eslint/eslintrc/lib/cascading-config-array-factory");
+const {
+    Legacy: {
+        CascadingConfigArrayFactory
+    }
+} = require("@eslint/eslintrc");
 const hash = require("../../../lib/cli-engine/hash");
 const { unIndent, createCustomTeardown } = require("../../_utils");
+const coreRules = require("../../../lib/rules");
 
 //------------------------------------------------------------------------------
 // Tests
@@ -40,7 +45,7 @@ describe("ESLint", () => {
     const originalDir = process.cwd();
     const fixtureDir = path.resolve(fs.realpathSync(os.tmpdir()), "eslint/fixtures");
 
-    /** @type {import("../../../lib/eslint")["ESLint"]} */
+    /** @type {import("../../../lib/eslint").ESLint} */
     let ESLint;
 
     /**
@@ -94,7 +99,7 @@ describe("ESLint", () => {
          * exceeds the default test timeout, so raise it just for this hook.
          * Mocha uses `this` to set timeouts on an individual hook level.
          */
-        this.timeout(60 * 1000); // eslint-disable-line no-invalid-this
+        this.timeout(60 * 1000); // eslint-disable-line no-invalid-this -- Mocha API
         shell.mkdir("-p", fixtureDir);
         shell.cp("-r", "./tests/fixtures/.", fixtureDir);
     });
@@ -122,7 +127,7 @@ describe("ESLint", () => {
 
         it("should report one fatal message when given a path by --ignore-path that is not a file when ignore is true.", () => {
             assert.throws(() => {
-                // eslint-disable-next-line no-new
+                // eslint-disable-next-line no-new -- Check for throwing
                 new ESLint({ ignorePath: fixtureDir });
             }, new RegExp(escapeStringRegExp(`Cannot read .eslintignore file: ${fixtureDir}\nError: EISDIR: illegal operation on a directory, read`), "u"));
         });
@@ -131,7 +136,7 @@ describe("ESLint", () => {
         it("should not modify baseConfig when format is specified", () => {
             const customBaseConfig = { root: true };
 
-            new ESLint({ baseConfig: customBaseConfig }); // eslint-disable-line no-new
+            new ESLint({ baseConfig: customBaseConfig }); // eslint-disable-line no-new -- Check for argument side effects
 
             assert.deepStrictEqual(customBaseConfig, { root: true });
         });
@@ -198,7 +203,7 @@ describe("ESLint", () => {
                     "- 'errorOnUnmatchedPattern' must be a boolean.",
                     "- 'extensions' must be an array of non-empty strings or null.",
                     "- 'fix' must be a boolean or a function.",
-                    "- 'fixTypes' must be an array of any of \"problem\", \"suggestion\", and \"layout\".",
+                    "- 'fixTypes' must be an array of any of \"directive\", \"problem\", \"suggestion\", and \"layout\".",
                     "- 'globInputPaths' must be a boolean.",
                     "- 'ignore' must be a boolean.",
                     "- 'ignorePath' must be a non-empty string or null.",
@@ -396,6 +401,7 @@ describe("ESLint", () => {
                     messages: [],
                     errorCount: 0,
                     warningCount: 0,
+                    fatalErrorCount: 0,
                     fixableErrorCount: 0,
                     fixableWarningCount: 0,
                     output: "var bar = foo;",
@@ -441,7 +447,7 @@ describe("ESLint", () => {
                         fix: true,
                         fixTypes: ["layou"]
                     });
-                }, /'fixTypes' must be an array of any of "problem", "suggestion", and "layout"\./iu);
+                }, /'fixTypes' must be an array of any of "directive", "problem", "suggestion", and "layout"\./iu);
             });
 
             it("should not fix any rules when fixTypes is used without fix", async () => {
@@ -596,6 +602,7 @@ describe("ESLint", () => {
                     ],
                     errorCount: 1,
                     warningCount: 0,
+                    fatalErrorCount: 0,
                     fixableErrorCount: 0,
                     fixableWarningCount: 0,
                     source: "var bar = foo",
@@ -635,6 +642,7 @@ describe("ESLint", () => {
                     ],
                     errorCount: 1,
                     warningCount: 0,
+                    fatalErrorCount: 1,
                     fixableErrorCount: 0,
                     fixableWarningCount: 0,
                     output: "var bar = foothis is a syntax error.",
@@ -673,6 +681,7 @@ describe("ESLint", () => {
                     ],
                     errorCount: 1,
                     warningCount: 0,
+                    fatalErrorCount: 1,
                     fixableErrorCount: 0,
                     fixableWarningCount: 0,
                     source: "var bar =",
@@ -760,6 +769,7 @@ describe("ESLint", () => {
                     ],
                     errorCount: 1,
                     warningCount: 0,
+                    fatalErrorCount: 1,
                     fixableErrorCount: 0,
                     fixableWarningCount: 0,
                     source: "var bar = foothis is a syntax error.\n return bar;",
@@ -786,7 +796,7 @@ describe("ESLint", () => {
             const Module = require("module");
             let originalFindPath = null;
 
-            /* eslint-disable no-underscore-dangle */
+            /* eslint-disable no-underscore-dangle -- Override Node API */
             before(() => {
                 originalFindPath = Module._findPath;
                 Module._findPath = function(id, ...otherArgs) {
@@ -799,7 +809,7 @@ describe("ESLint", () => {
             after(() => {
                 Module._findPath = originalFindPath;
             });
-            /* eslint-enable no-underscore-dangle */
+            /* eslint-enable no-underscore-dangle -- Override Node API */
 
             it("should resolve 'plugins:[\"@scope\"]' to 'node_modules/@scope/eslint-plugin'.", async () => {
                 eslint = new ESLint({ cwd: getFixturePath("plugin-shorthand/basic") });
@@ -846,7 +856,7 @@ describe("ESLint", () => {
 
         it("should throw if 'options' argument contains unknown key", async () => {
             eslint = new ESLint();
-            await assert.rejects(() => eslint.lintText("var a = 0", { filename: "foo.js" }), /'options' must not include the unknown option 'filename'/u);
+            await assert.rejects(() => eslint.lintText("var a = 0", { filename: "foo.js" }), /'options' must not include the unknown option\(s\): filename/u);
         });
 
         it("should throw if non-string value is given to 'options.filePath' option", async () => {
@@ -862,7 +872,7 @@ describe("ESLint", () => {
 
     describe("lintFiles()", () => {
 
-        /** @type {InstanceType<import("../../../lib/eslint")["ESLint"]>} */
+        /** @type {InstanceType<import("../../../lib/eslint").ESLint>} */
         let eslint;
 
         it("should use correct parser when custom parser is specified", async () => {
@@ -1657,6 +1667,7 @@ describe("ESLint", () => {
                         messages: [],
                         errorCount: 0,
                         warningCount: 0,
+                        fatalErrorCount: 0,
                         fixableErrorCount: 0,
                         fixableWarningCount: 0,
                         output: "true ? \"yes\" : \"no\";\n",
@@ -1667,6 +1678,7 @@ describe("ESLint", () => {
                         messages: [],
                         errorCount: 0,
                         warningCount: 0,
+                        fatalErrorCount: 0,
                         fixableErrorCount: 0,
                         fixableWarningCount: 0,
                         usedDeprecatedRules: []
@@ -1688,6 +1700,7 @@ describe("ESLint", () => {
                         ],
                         errorCount: 1,
                         warningCount: 0,
+                        fatalErrorCount: 0,
                         fixableErrorCount: 0,
                         fixableWarningCount: 0,
                         output: "var msg = \"hi\";\nif (msg == \"hi\") {\n\n}\n",
@@ -1710,6 +1723,7 @@ describe("ESLint", () => {
                         ],
                         errorCount: 1,
                         warningCount: 0,
+                        fatalErrorCount: 0,
                         fixableErrorCount: 0,
                         fixableWarningCount: 0,
                         output: "var msg = \"hi\" + foo;\n",
@@ -2072,6 +2086,36 @@ describe("ESLint", () => {
                     },
                     plugins: {
                         "eslint-plugin-test": { rules: { "example-rule": require("../../fixtures/rules/custom-rule") } }
+                    }
+                });
+                const results = await eslint.lintFiles([fs.realpathSync(getFixturePath("rules", "test", "test-custom-rule.js"))]);
+
+                assert.strictEqual(results.length, 1);
+                assert.strictEqual(results[0].messages.length, 2);
+                assert.strictEqual(results[0].messages[0].ruleId, "test/example-rule");
+            });
+
+            it("should return two messages when executing with `baseConfig` that extends preloaded plugin config", async () => {
+                eslint = new ESLint({
+                    cwd: path.join(fixtureDir, ".."),
+                    useEslintrc: false,
+                    baseConfig: {
+                        extends: ["plugin:test/preset"]
+                    },
+                    plugins: {
+                        test: {
+                            rules: {
+                                "example-rule": require("../../fixtures/rules/custom-rule")
+                            },
+                            configs: {
+                                preset: {
+                                    rules: {
+                                        "test/example-rule": 1
+                                    },
+                                    plugins: ["test"]
+                                }
+                            }
+                        }
                     }
                 });
                 const results = await eslint.lintFiles([fs.realpathSync(getFixturePath("rules", "test", "test-custom-rule.js"))]);
@@ -4297,7 +4341,7 @@ describe("ESLint", () => {
 
                 assert.throws(() => {
                     try {
-                        // eslint-disable-next-line no-new
+                        // eslint-disable-next-line no-new -- Check for error
                         new ESLint({ cwd });
                     } catch (error) {
                         assert.strictEqual(error.messageTemplate, "failed-to-read-json");
@@ -4323,7 +4367,7 @@ describe("ESLint", () => {
                 const cwd = getFixturePath("ignored-paths", "bad-package-json-ignore");
 
                 assert.throws(() => {
-                    // eslint-disable-next-line no-new
+                    // eslint-disable-next-line no-new -- Check for throwing
                     new ESLint({ cwd });
                 }, /Package\.json eslintIgnore property requires an array of paths/u);
             });
@@ -4452,7 +4496,7 @@ describe("ESLint", () => {
                 const ignorePath = getFixturePath("ignored-paths", "not-a-directory", ".foobaz");
 
                 assert.throws(() => {
-                    // eslint-disable-next-line no-new
+                    // eslint-disable-next-line no-new -- Check for throwing
                     new ESLint({ ignorePath, cwd });
                 }, /Cannot read \.eslintignore file/u);
             });
@@ -4652,7 +4696,7 @@ describe("ESLint", () => {
             assert.strictEqual(typeof formatter.format, "function");
         });
 
-        it("should throw if a customer formatter doesn't exist", async () => {
+        it("should throw if a custom formatter doesn't exist", async () => {
             const engine = new ESLint();
             const formatterPath = getFixturePath("formatters", "doesntexist.js");
             const fullFormatterPath = path.resolve(formatterPath);
@@ -4790,6 +4834,80 @@ describe("ESLint", () => {
         });
     });
 
+    describe("getRulesMetaForResults()", () => {
+        it("should return empty object when there are no linting errors", async () => {
+            const engine = new ESLint({
+                useEslintrc: false
+            });
+
+            const rulesMeta = engine.getRulesMetaForResults([]);
+
+            assert.strictEqual(Object.keys(rulesMeta).length, 0);
+        });
+
+        it("should return one rule meta when there is a linting error", async () => {
+            const engine = new ESLint({
+                useEslintrc: false,
+                overrideConfig: {
+                    rules: {
+                        semi: 2
+                    }
+                }
+            });
+
+            const results = await engine.lintText("a");
+            const rulesMeta = engine.getRulesMetaForResults(results);
+
+            assert.strictEqual(rulesMeta.semi, coreRules.get("semi").meta);
+        });
+
+        it("should return multiple rule meta when there are multiple linting errors", async () => {
+            const engine = new ESLint({
+                useEslintrc: false,
+                overrideConfig: {
+                    rules: {
+                        semi: 2,
+                        quotes: [2, "double"]
+                    }
+                }
+            });
+
+            const results = await engine.lintText("'a'");
+            const rulesMeta = engine.getRulesMetaForResults(results);
+
+            assert.strictEqual(rulesMeta.semi, coreRules.get("semi").meta);
+            assert.strictEqual(rulesMeta.quotes, coreRules.get("quotes").meta);
+        });
+
+        it("should return multiple rule meta when there are multiple linting errors from a plugin", async () => {
+            const nodePlugin = require("eslint-plugin-node");
+            const engine = new ESLint({
+                useEslintrc: false,
+                plugins: {
+                    node: nodePlugin
+                },
+                overrideConfig: {
+                    plugins: ["node"],
+                    rules: {
+                        "node/no-new-require": 2,
+                        semi: 2,
+                        quotes: [2, "double"]
+                    }
+                }
+            });
+
+            const results = await engine.lintText("new require('hi')");
+            const rulesMeta = engine.getRulesMetaForResults(results);
+
+            assert.strictEqual(rulesMeta.semi, coreRules.get("semi").meta);
+            assert.strictEqual(rulesMeta.quotes, coreRules.get("quotes").meta);
+            assert.strictEqual(
+                rulesMeta["node/no-new-require"],
+                nodePlugin.rules["no-new-require"].meta
+            );
+        });
+    });
+
     describe("outputFixes()", () => {
         afterEach(() => {
             sinon.verifyAndRestore();
@@ -4864,6 +4982,7 @@ describe("ESLint", () => {
             ].join("\n");
             const config = {
                 ignore: true,
+                useEslintrc: false,
                 allowInlineConfig: false,
                 overrideConfig: {
                     env: { browser: true },
@@ -4890,6 +5009,7 @@ describe("ESLint", () => {
             ].join("\n");
             const config = {
                 ignore: true,
+                useEslintrc: false,
                 allowInlineConfig: true,
                 overrideConfig: {
                     env: { browser: true },
@@ -4925,13 +5045,18 @@ describe("ESLint", () => {
                                 message: "Unused eslint-disable directive (no problems were reported).",
                                 line: 1,
                                 column: 1,
+                                fix: {
+                                    range: [0, 20],
+                                    text: " "
+                                },
                                 severity: 2,
                                 nodeType: null
                             }
                         ],
                         errorCount: 1,
                         warningCount: 0,
-                        fixableErrorCount: 0,
+                        fatalErrorCount: 0,
+                        fixableErrorCount: 1,
                         fixableWarningCount: 0,
                         source: "/* eslint-disable */",
                         usedDeprecatedRules: []
@@ -5985,7 +6110,8 @@ describe("ESLint", () => {
                         ],
                         source: "a == b",
                         usedDeprecatedRules: [],
-                        warningCount: 0
+                        warningCount: 0,
+                        fatalErrorCount: 0
                     }
                 ]);
             });
@@ -6008,7 +6134,8 @@ describe("ESLint", () => {
                         fixableWarningCount: 0,
                         messages: [],
                         usedDeprecatedRules: [],
-                        warningCount: 0
+                        warningCount: 0,
+                        fatalErrorCount: 0
                     }
                 ]);
             });
@@ -6055,7 +6182,8 @@ describe("ESLint", () => {
                         fixableWarningCount: 0,
                         messages: [],
                         usedDeprecatedRules: [],
-                        warningCount: 0
+                        warningCount: 0,
+                        fatalErrorCount: 0
                     }
                 ]);
             });
@@ -6091,7 +6219,8 @@ describe("ESLint", () => {
                         ],
                         source: "a == b",
                         usedDeprecatedRules: [],
-                        warningCount: 0
+                        warningCount: 0,
+                        fatalErrorCount: 0
                     }
                 ]);
             });
