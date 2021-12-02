@@ -22,7 +22,7 @@ index a22c99b..9209159 100644
 +    target: "node",
      entry: {
 -        eslint: ["core-js/stable", "regenerator-runtime/runtime", "./lib/linter/linter.js"]
-+        eslint: ["core-js/stable", "regenerator-runtime/runtime", "./lib/linter/linter.js", "./lib/cli-engine/index.js"]
++        eslint: ["core-js/stable", "regenerator-runtime/runtime", "./lib/linter/linter.js", "./lib/eslint/index.js"]
      },
      output: {
          filename: "[name].js",

@@ -3,11 +3,13 @@
 const worker = require('worker_threads');
 
 if (!worker.isMainThread) {
-    const eslint = require('pve-eslint');
-    const data = worker.workerData;
-    const cli = new eslint.CLIEngine(data.cliOptions);
-    const report = cli.executeOnFiles(data.files);
-    worker.parentPort.postMessage(report);
+    (async function() {
+	const eslint = require('pve-eslint');
+	const data = worker.workerData;
+	const cli = new eslint.ESLint(data.cliOptions);
+	const report = await cli.lintFiles(data.files);
+	worker.parentPort.postMessage(report);
+    })();
 } else {
     module.exports = async function createWorker(workerData) {
 	return new Promise((resolve, reject) => {

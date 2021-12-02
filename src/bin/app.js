@@ -313,7 +313,7 @@ promises.push(eslint.createWorker({
     files: paths
 }));
 
-let results = (await Promise.all(promises)).map(res => res.results).flat(1);
+let results = (await Promise.all(promises)).flat(1);
 
 let exitcode = 0;
 let files_err = [], files_warn = [], files_ok = [];
@@ -390,7 +390,7 @@ console.log('------------------------------------------------------------');
 if (program.fix) {
     if (fixes > 0) {
 	console.log(`Writing ${color.bold(fixes)} fixed files...`);
-	eslint.CLIEngine.outputFixes({ results });
+	eslint.ESLint.outputFixes({ results });
 	console.log('Done');
     } else {
 	console.log("No fixable Errors/Warnings found.");
