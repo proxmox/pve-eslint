@@ -249,10 +249,13 @@ describe("cli", () => {
 
             // Check metadata.
             const { metadata } = JSON.parse(log.info.args[0][0]);
-            const expectedMetadata = Array.from(BuiltinRules).reduce((obj, [ruleId, rule]) => {
-                obj.rulesMeta[ruleId] = rule.meta;
-                return obj;
-            }, { rulesMeta: {} });
+            const expectedMetadata = {
+                cwd: process.cwd(),
+                rulesMeta: Array.from(BuiltinRules).reduce((obj, [ruleId, rule]) => {
+                    obj[ruleId] = rule.meta;
+                    return obj;
+                }, {})
+            };
 
             assert.deepStrictEqual(metadata, expectedMetadata);
         });
@@ -284,6 +287,17 @@ describe("cli", () => {
             const exit = await cli.execute(`-f ${formatterPath} ${filePath}`);
 
             assert.strictEqual(exit, 2);
+        });
+    });
+
+    describe("when given an async formatter path", () => {
+        it("should execute without any errors", async () => {
+            const formatterPath = getFixturePath("formatters", "async.js");
+            const filePath = getFixturePath("passing.js");
+            const exit = await cli.execute(`-f ${formatterPath} ${filePath}`);
+
+            assert.strictEqual(log.info.getCall(0).args[0], "from async formatter");
+            assert.strictEqual(exit, 0);
         });
     });
 
