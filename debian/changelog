@@ -1,3 +1,21 @@
+pve-eslint (8.4.0-1) bullseye; urgency=medium
+
+  [ Proxmox Support Team ]
+  * update to 8.4.0 upstream release
+  * change from depreacated CLIEngine module to ESLint one
+
+  [ ESLint ]
+  * relevant changes since 8.3.0
+    + feat: add `allowReserved` parser option (#15387) (Milos Djermanovic)
+    + feat: Flat config support in Linter (refs #13481) (#15185) (Nicholas C. Zakas)
+    + feat: Treat Class/New Expressions as truthy in no-constant-condition (#15326) (Jordan Eldredge)
+    + feat: report only lines that exceed the limit in max-lines-per-function (#15140) (Sneh Khatri)
+    + feat: pass cwd to formatters (refs eslint/rfcs#57) (#13392) (Toru Nagashima)
+    + fix: mark --rulesdir option as deprecated in CLI docs (#15310) (Kevin Partington)
+    + feat: support async formatters (#15243) (MO)
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 06 Dec 2021 14:12:21 +0100
+
 pve-eslint (8.3.0-1) bullseye; urgency=medium
 
   [ Proxmox Support Team ]
@@ -5,6 +23,13 @@ pve-eslint (8.3.0-1) bullseye; urgency=medium
 
   [ ESLint ]
   * relevant changes since 7.28.0
+    + feat: add `allowReserved` parser option (#15387) (Milos Djermanovic)
+    + feat: Flat config support in Linter (refs #13481) (#15185) (Nicholas C. Zakas)
+    + feat: Treat Class/New Expressions as truthy in no-constant-condition (#15326) (Jordan Eldredge)
+    + feat: report only lines that exceed the limit in max-lines-per-function (#15140) (Sneh Khatri)
+    + feat: pass cwd to formatters (refs eslint/rfcs#57) (#13392) (Toru Nagashima)
+    + fix: mark --rulesdir option as deprecated in CLI docs (#15310) (Kevin Partington)
+    + feat: support async formatters (#15243) (MO)
     + feat: add `allowProperties` option to require-atomic-updates (#15238) (Milos Djermanovic)
     + feat: update no-use-before-define for class static blocks (#15312) (Milos Djermanovic)
     + fix: update vars-on-top for class static blocks (#15306) (Milos Djermanovic)
@@ -25,8 +50,6 @@ pve-eslint (8.3.0-1) bullseye; urgency=medium
     + feat: update eslint-scope for class static blocks (#15321) (Milos Djermanovic)
     + feat: update one-var for class static blocks (#15317) (Milos Djermanovic)
     + feat: update padding-line-between-statements for class static blocks (#15318) (Milos Djermanovic)
-    + docs: Expand  `--debug` option description in the CLI documentation (#15308) (darkred)
-    + docs: the strict rule does not apply to class static blocks (#15314) (Milos Djermanovic)
     + fix: update no-invalid-this and no-eval for class static blocks (#15300) (Milos Djermanovic)
     + feat: update class-methods-use-this for class static blocks (#15298) (Milos Djermanovic)
     + feat: update no-lone-blocks for class static blocks (#15295) (Milos Djermanovic)
@@ -35,23 +58,9 @@ pve-eslint (8.3.0-1) bullseye; urgency=medium
     + feat: update no-extra-semi for class static blocks (#15287) (Milos Djermanovic)
     + feat: update semi rule for class static blocks (#15286) (Milos Djermanovic)
     + feat: add examples for block-scoped-var with class static blocks (#15302) (Milos Djermanovic)
-    + docs: Remove inconsistent colon in pull request docs (#15303) (Jordan Eldredge)
-    + docs: remove deprecation note from lines-around-comment (#15293) (Milos Djermanovic)
-    + docs: no-unused-expressions - class static blocks don't have directives (#15283) (Milos Djermanovic)
-    + chore: upgrade eslint-visitor-keys for class static blocks (#15277) (Milos Djermanovic)
-    + docs: Add variables option to no-use-before-define (#15276) (Mathias Rasmussen)
     + feat: Normalize ecmaVersion to eslint-scope when using custom parser (#15268) (Yosuke Ota)
-    + chore: update @eslint/eslintrc to avoid different versions of `js-yaml` (#15265) (Milos Djermanovic)
     + feat: report class evaluation TDZ errors in no-use-before-define (#15134) (Milos Djermanovic)
     + perf: don't prepare a fix for valid code in key-spacing (#15239) (Milos Djermanovic)
-    + docs: Use string rule severity in CLI examples (#15253) (Kevin Partington)
-    + build: upgrade eslint-release to v3.2.0 to support conventional commits (#15246) (Milos Djermanovic)
-    + docs: fix typo in `working-with-rules.md` (#15233) (Nitin Kumar)
-    + docs: fix broken anchor in configuration files (#15223) (Pierre Berger)
-    + chore: update `strip-ansi` dependency (#15221) (Nitin Kumar)
-    + docs: Link to unit tests from rule documentation (#15207) (Brandon Mills)
-    + docs: add `ci` and `perf` tags for commit (#15215) (Nitin Kumar)
-    + ci: Remove Node 16 CI prerelease workaround (#14935) (Brandon Mills)
     + Fix: keyword-spacing conflict with space-infix-ops on `>` (fixes #14712) (#15172) (Milos Djermanovic)
     + Fix: allow `baseConfig` to extend preloaded plugin config (fixes #15079) (#15187) (Milos Djermanovic)
     + New: Add no-unused-private-class-members rule (fixes #14859) (#14895) (Tim van der Lippe)
