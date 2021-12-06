@@ -17,9 +17,10 @@ cp "$repo/eslint/CHANGELOG.md" "$cfn"
 
 sed -ri 's/^\* \S+ /+ /g' "$cfn"
 
-sed -i '/ Sponsors: /d' "$cfn"
-sed -i '/ Chore: /d' "$cfn"
-sed -i '/ Docs: /d' "$cfn"
+sed -i '/ Sponsors: /Id' "$cfn"
+sed -i '/ Chore: /Id' "$cfn"
+sed -i '/ Docs: /Id' "$cfn"
+sed -i '/ ci: /Id' "$cfn"
 
 if [[ $1 ]]; then
    version="$1"
