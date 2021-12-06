@@ -21,6 +21,8 @@ sed -i '/ Sponsors: /Id' "$cfn"
 sed -i '/ Chore: /Id' "$cfn"
 sed -i '/ Docs: /Id' "$cfn"
 sed -i '/ ci: /Id' "$cfn"
+sed -i '/ build: /Id' "$cfn"
+sed -i '/ESLint Jenkins/Id' "$cfn"
 
 if [[ $1 ]]; then
    version="$1"
