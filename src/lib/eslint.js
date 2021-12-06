@@ -1464,7 +1464,7 @@ var store = __webpack_require__(33);
 (module.exports = function (key, value) {
   return store[key] || (store[key] = value !== undefined ? value : {});
 })('versions', []).push({
-  version: '3.19.2',
+  version: '3.19.3',
   mode: IS_PURE ? 'pure' : 'global',
   copyright: '© 2021 Denis Pushkarev (zloirock.ru)'
 });
@@ -4452,10 +4452,10 @@ var returnThis = function () {
   return this;
 };
 
-module.exports = function (IteratorConstructor, NAME, next) {
+module.exports = function (IteratorConstructor, NAME, next, ENUMERABLE_NEXT) {
   var TO_STRING_TAG = NAME + ' Iterator';
   IteratorConstructor.prototype = create(IteratorPrototype, {
-    next: createPropertyDescriptor(1, next)
+    next: createPropertyDescriptor(+!ENUMERABLE_NEXT, next)
   });
   setToStringTag(IteratorConstructor, TO_STRING_TAG, false, true);
   Iterators[TO_STRING_TAG] = returnThis;
@@ -9474,7 +9474,7 @@ var V8_VERSION = __webpack_require__(24);
 
 var SPECIES = wellKnownSymbol('species');
 var PROMISE = 'Promise';
-var getInternalState = InternalStateModule.get;
+var getInternalState = InternalStateModule.getterFor(PROMISE);
 var setInternalState = InternalStateModule.set;
 var getInternalPromiseState = InternalStateModule.getterFor(PROMISE);
 var NativePromisePrototype = NativePromise && NativePromise.prototype;
@@ -16925,7 +16925,7 @@ var URLSearchParamsIterator = createIteratorConstructor(function Iterator(params
   }
 
   return step;
-});
+}, true);
 
 var URLSearchParamsState = function (init) {
   this.entries = [];
@@ -18032,6 +18032,14 @@ const path = __webpack_require__(429),
       timing = __webpack_require__(857),
       ruleReplacements = __webpack_require__(858);
 
+const {
+  getRuleFromConfig
+} = __webpack_require__(859);
+
+const {
+  FlatConfigArray
+} = __webpack_require__(860);
+
 const debug = __webpack_require__(496)("eslint:linter");
 
 const MAX_AUTOFIX_PASSES = 10;
@@ -18048,7 +18056,9 @@ const DEFAULT_ERROR_LOC = {
     column: 1
   }
 };
-const parserSymbol = Symbol.for("eslint.RuleTester.parser"); //------------------------------------------------------------------------------
+const parserSymbol = Symbol.for("eslint.RuleTester.parser");
+
+const globals = __webpack_require__(877); //------------------------------------------------------------------------------
 // Typedefs
 //------------------------------------------------------------------------------
 
@@ -18065,6 +18075,8 @@ const parserSymbol = Symbol.for("eslint.RuleTester.parser"); //-----------------
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
 
 /** @typedef {import("../shared/types").ParserOptions} ParserOptions */
+
+/** @typedef {import("../shared/types").LanguageOptions} LanguageOptions */
 
 /** @typedef {import("../shared/types").Processor} Processor */
 
@@ -18138,6 +18150,39 @@ const parserSymbol = Symbol.for("eslint.RuleTester.parser"); //-----------------
 //------------------------------------------------------------------------------
 
 /**
+ * Determines if a given object is Espree.
+ * @param {Object} parser The parser to check.
+ * @returns {boolean} True if the parser is Espree or false if not.
+ */
+
+
+function isEspree(parser) {
+  return !!(parser === espree || parser[parserSymbol] === espree);
+}
+/**
+ * Retrieves globals for the given ecmaVersion.
+ * @param {number} ecmaVersion The version to retrieve globals for.
+ * @returns {Object} The globals for the given ecmaVersion.
+ */
+
+
+function getGlobalsForEcmaVersion(ecmaVersion) {
+  switch (ecmaVersion) {
+    case 3:
+      return globals.es3;
+
+    case 5:
+      return globals.es5;
+
+    default:
+      if (ecmaVersion < 2015) {
+        return globals["es".concat(ecmaVersion + 2009)];
+      }
+
+      return globals["es".concat(ecmaVersion)];
+  }
+}
+/**
  * Ensures that variables representing built-in properties of the Global Object,
  * and any globals declared by special block comments, are present in the global
  * scope.
@@ -18146,6 +18191,7 @@ const parserSymbol = Symbol.for("eslint.RuleTester.parser"); //-----------------
  * @param {{exportedVariables: Object, enabledGlobals: Object}} commentDirectives Directives from comment configuration
  * @returns {void}
  */
+
 
 function addDeclaredGlobals(globalScope, configGlobals, _ref) {
   let {
@@ -18288,7 +18334,7 @@ function createDisableDirectives(options) {
 
   for (const ruleId of directiveRules) {
     // push to directives, if the rule is defined(including null, e.g. /*eslint enable*/)
-    if (ruleId === null || ruleMapper(ruleId) !== null) {
+    if (ruleId === null || !!ruleMapper(ruleId)) {
       result.directives.push({
         parentComment,
         type,
@@ -18442,7 +18488,7 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
               const rule = ruleMapper(name);
               const ruleValue = parseResult.config[name];
 
-              if (rule === null) {
+              if (!rule) {
                 problems.push(createLintingProblem({
                   ruleId: name,
                   loc: comment.loc
@@ -18490,7 +18536,7 @@ function getDirectiveComments(filename, ast, ruleMapper, warnInlineConfig) {
 
 
 function normalizeEcmaVersion(parser, ecmaVersion) {
-  if ((parser[parserSymbol] || parser) === espree) {
+  if (isEspree(parser)) {
     if (ecmaVersion === "latest") {
       return espree.latestEcmaVersion;
     }
@@ -18502,6 +18548,40 @@ function normalizeEcmaVersion(parser, ecmaVersion) {
 
 
   return ecmaVersion >= 2015 ? ecmaVersion - 2009 : ecmaVersion;
+}
+/**
+ * Normalize ECMAScript version from the initial config into languageOptions (year)
+ * format.
+ * @param {any} [ecmaVersion] ECMAScript version from the initial config
+ * @returns {number} normalized ECMAScript version
+ */
+
+
+function normalizeEcmaVersionForLanguageOptions(ecmaVersion) {
+  switch (ecmaVersion) {
+    case 3:
+      return 3;
+    // void 0 = no ecmaVersion specified so use the default
+
+    case 5:
+    case void 0:
+      return 5;
+
+    default:
+      if (typeof ecmaVersion === "number") {
+        return ecmaVersion >= 2015 ? ecmaVersion : ecmaVersion + 2009;
+      }
+
+  }
+  /*
+   * We default to the latest supported ecmaVersion for everything else.
+   * Remember, this is for languageOptions.ecmaVersion, which sets the version
+   * that is used for a number of processes inside of ESLint. It's normally
+   * safe to assume people want the latest unless otherwise specified.
+   */
+
+
+  return espree.latestEcmaVersion + 2009;
 }
 
 const eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)(?:\*\/|$)/gsu;
@@ -18552,7 +18632,9 @@ function normalizeFilename(filename) {
 
 
 function normalizeVerifyOptions(providedOptions, config) {
-  const disableInlineConfig = config.noInlineConfig === true;
+  const linterOptions = config.linterOptions || config; // .noInlineConfig for eslintrc, .linterOptions.noInlineConfig for flat
+
+  const disableInlineConfig = linterOptions.noInlineConfig === true;
   const ignoreInlineConfig = providedOptions.allowInlineConfig === false;
   const configNameOfNoInlineConfig = config.configNameOfNoInlineConfig ? " (".concat(config.configNameOfNoInlineConfig, ")") : "";
   let reportUnusedDisableDirectives = providedOptions.reportUnusedDisableDirectives;
@@ -18562,7 +18644,7 @@ function normalizeVerifyOptions(providedOptions, config) {
   }
 
   if (typeof reportUnusedDisableDirectives !== "string") {
-    reportUnusedDisableDirectives = config.reportUnusedDisableDirectives ? "warn" : "off";
+    reportUnusedDisableDirectives = linterOptions.reportUnusedDisableDirectives ? "warn" : "off";
   }
 
   return {
@@ -18599,6 +18681,34 @@ function resolveParserOptions(parser, providedOptions, enabledEnvironments) {
 
   mergedParserOptions.ecmaVersion = normalizeEcmaVersion(parser, mergedParserOptions.ecmaVersion);
   return mergedParserOptions;
+}
+/**
+ * Converts parserOptions to languageOptions for backwards compatibility with eslintrc.
+ * @param {ConfigData} config Config object.
+ * @param {Object} config.globals Global variable definitions.
+ * @param {Parser} config.parser The parser to use.
+ * @param {ParserOptions} config.parserOptions The parserOptions to use.
+ * @returns {LanguageOptions} The languageOptions equivalent.
+ */
+
+
+function createLanguageOptions(_ref2) {
+  let {
+    globals: configuredGlobals,
+    parser,
+    parserOptions
+  } = _ref2;
+  const {
+    ecmaVersion,
+    sourceType
+  } = parserOptions;
+  return {
+    globals: configuredGlobals,
+    ecmaVersion: normalizeEcmaVersionForLanguageOptions(ecmaVersion),
+    sourceType,
+    parser,
+    parserOptions
+  };
 }
 /**
  * Combines the provided globals object with the globals from environments
@@ -18647,21 +18757,22 @@ function getRuleOptions(ruleConfig) {
 /**
  * Analyze scope of the given AST.
  * @param {ASTNode} ast The `Program` node to analyze.
- * @param {ParserOptions} parserOptions The parser options.
+ * @param {LanguageOptions} languageOptions The parser options.
  * @param {Record<string, string[]>} visitorKeys The visitor keys.
  * @returns {ScopeManager} The analysis result.
  */
 
 
-function analyzeScope(ast, parserOptions, visitorKeys) {
+function analyzeScope(ast, languageOptions, visitorKeys) {
+  const parserOptions = languageOptions.parserOptions;
   const ecmaFeatures = parserOptions.ecmaFeatures || {};
-  const ecmaVersion = parserOptions.ecmaVersion || DEFAULT_ECMA_VERSION;
+  const ecmaVersion = languageOptions.ecmaVersion || DEFAULT_ECMA_VERSION;
   return eslintScope.analyze(ast, {
     ignoreEval: true,
     nodejsScope: ecmaFeatures.globalReturn,
     impliedStrict: ecmaFeatures.impliedStrict,
     ecmaVersion: typeof ecmaVersion === "number" ? ecmaVersion : 6,
-    sourceType: parserOptions.sourceType || "script",
+    sourceType: languageOptions.sourceType || "script",
     childVisitorKeys: visitorKeys || evk.KEYS,
     fallback: Traverser.getKeys
   });
@@ -18671,8 +18782,7 @@ function analyzeScope(ast, parserOptions, visitorKeys) {
  * optimization of functions, so it's best to keep the try-catch as isolated
  * as possible
  * @param {string} text The text to parse.
- * @param {Parser} parser The parser to parse.
- * @param {ParserOptions} providedParserOptions Options to pass to the parser
+ * @param {LanguageOptions} languageOptions Options to pass to the parser
  * @param {string} filePath The path to the file being parsed.
  * @returns {{success: false, error: Problem}|{success: true, sourceCode: SourceCode}}
  * An object containing the AST and parser services if parsing was successful, or the error if parsing failed
@@ -18680,9 +18790,17 @@ function analyzeScope(ast, parserOptions, visitorKeys) {
  */
 
 
-function parse(text, parser, providedParserOptions, filePath) {
+function parse(text, languageOptions, filePath) {
   const textToParse = stripUnicodeBOM(text).replace(astUtils.shebangPattern, (match, captured) => "//".concat(captured));
-  const parserOptions = Object.assign({}, providedParserOptions, {
+  const {
+    ecmaVersion,
+    sourceType,
+    parser
+  } = languageOptions;
+  const parserOptions = Object.assign({
+    ecmaVersion,
+    sourceType
+  }, languageOptions.parserOptions, {
     loc: true,
     range: true,
     raw: true,
@@ -18706,7 +18824,7 @@ function parse(text, parser, providedParserOptions, filePath) {
     const ast = parseResult.ast;
     const parserServices = parseResult.services || {};
     const visitorKeys = parseResult.visitorKeys || evk.KEYS;
-    const scopeManager = parseResult.scopeManager || analyzeScope(ast, parserOptions, visitorKeys);
+    const scopeManager = parseResult.scopeManager || analyzeScope(ast, languageOptions, visitorKeys);
     return {
       success: true,
 
@@ -18771,15 +18889,17 @@ function getScope(scopeManager, currentNode) {
  * Marks a variable as used in the current scope
  * @param {ScopeManager} scopeManager The scope manager for this AST. The scope may be mutated by this function.
  * @param {ASTNode} currentNode The node currently being traversed
- * @param {Object} parserOptions The options used to parse this text
+ * @param {LanguageOptions} languageOptions The options used to parse this text
  * @param {string} name The name of the variable that should be marked as used.
  * @returns {boolean} True if the variable was found and marked as used, false if not.
  */
 
 
-function markVariableAsUsed(scopeManager, currentNode, parserOptions, name) {
-  const hasGlobalReturn = parserOptions.ecmaFeatures && parserOptions.ecmaFeatures.globalReturn;
-  const specialScope = hasGlobalReturn || parserOptions.sourceType === "module";
+function markVariableAsUsed(scopeManager, currentNode, languageOptions, name) {
+  const parserOptions = languageOptions.parserOptions;
+  const sourceType = languageOptions.sourceType;
+  const hasGlobalReturn = parserOptions.ecmaFeatures && parserOptions.ecmaFeatures.globalReturn || sourceType === "commonjs";
+  const specialScope = hasGlobalReturn || sourceType === "module";
   const currentScope = getScope(scopeManager, currentNode); // Special Node.js scope means we need to start one level deeper
 
   const initialScope = currentScope.type === "global" && specialScope ? currentScope.childScopes[0] : currentScope;
@@ -18864,8 +18984,8 @@ const BASE_TRAVERSAL_CONTEXT = Object.freeze(Object.keys(DEPRECATED_SOURCECODE_P
  * @param {SourceCode} sourceCode A SourceCode object for the given text
  * @param {Object} configuredRules The rules configuration
  * @param {function(string): Rule} ruleMapper A mapper function from rule names to rules
- * @param {Object} parserOptions The options that were passed to the parser
- * @param {string} parserName The name of the parser in the config
+ * @param {string | undefined} parserName The name of the parser in the config
+ * @param {LanguageOptions} languageOptions The options for parsing the code.
  * @param {Object} settings The settings that were enabled in the config
  * @param {string} filename The reported filename of the code
  * @param {boolean} disableFixes If true, it doesn't make `fix` properties.
@@ -18874,7 +18994,7 @@ const BASE_TRAVERSAL_CONTEXT = Object.freeze(Object.keys(DEPRECATED_SOURCECODE_P
  * @returns {Problem[]} An array of reported problems
  */
 
-function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parserName, settings, filename, disableFixes, cwd, physicalFilename) {
+function runRules(sourceCode, configuredRules, ruleMapper, parserName, languageOptions, settings, filename, disableFixes, cwd, physicalFilename) {
   const emitter = createEmitter();
   const nodeQueue = [];
   let currentNode = sourceCode.ast;
@@ -18910,9 +19030,11 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
     getPhysicalFilename: () => physicalFilename || filename,
     getScope: () => getScope(sourceCode.scopeManager, currentNode),
     getSourceCode: () => sourceCode,
-    markVariableAsUsed: name => markVariableAsUsed(sourceCode.scopeManager, currentNode, parserOptions, name),
-    parserOptions,
+    markVariableAsUsed: name => markVariableAsUsed(sourceCode.scopeManager, currentNode, languageOptions, name),
+    parserOptions: { ...languageOptions.parserOptions
+    },
     parserPath: parserName,
+    languageOptions,
     parserServices: sourceCode.parserServices,
     settings
   }));
@@ -18926,7 +19048,7 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
 
     const rule = ruleMapper(ruleId);
 
-    if (rule === null) {
+    if (!rule) {
       lintingProblems.push(createLintingProblem({
         ruleId
       }));
@@ -19094,29 +19216,50 @@ function normalizeCwd(cwd) {
  */
 
 
-const internalSlotsMap = new WeakMap(); //------------------------------------------------------------------------------
+const internalSlotsMap = new WeakMap();
+/**
+ * Throws an error when the given linter is in flat config mode.
+ * @param {Linter} linter The linter to check.
+ * @returns {void}
+ * @throws {Error} If the linter is in flat config mode.
+ */
+
+function assertEslintrcConfig(linter) {
+  const {
+    configType
+  } = internalSlotsMap.get(linter);
+
+  if (configType === "flat") {
+    throw new Error("This method cannot be used with flat config. Add your entries directly into the config array.");
+  }
+} //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
 /**
  * Object that is responsible for verifying JavaScript text
- * @name eslint
+ * @name Linter
  */
+
 
 class Linter {
   /**
    * Initialize the Linter.
    * @param {Object} [config] the config object
    * @param {string} [config.cwd] path to a directory that should be considered as the current working directory, can be undefined.
+   * @param {"flat"|"eslintrc"} [config.configType="eslintrc"] the type of config used.
    */
   constructor() {
     let {
-      cwd
+      cwd,
+      configType
     } = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
     internalSlotsMap.set(this, {
       cwd: normalizeCwd(cwd),
       lastConfigArray: null,
       lastSourceCode: null,
+      configType,
+      // TODO: Remove after flat config conversion
       parserMap: new Map([["espree", espree]]),
       ruleMap: new Rules()
     });
@@ -19188,9 +19331,14 @@ class Linter {
     const parserOptions = resolveParserOptions(parser, config.parserOptions || {}, enabledEnvs);
     const configuredGlobals = resolveGlobals(config.globals || {}, enabledEnvs);
     const settings = config.settings || {};
+    const languageOptions = createLanguageOptions({
+      globals: config.globals,
+      parser,
+      parserOptions
+    });
 
     if (!slots.lastSourceCode) {
-      const parseResult = parse(text, parser, parserOptions, options.filename);
+      const parseResult = parse(text, languageOptions, options.filename);
 
       if (!parseResult.success) {
         return [parseResult.error];
@@ -19208,7 +19356,7 @@ class Linter {
           ast: slots.lastSourceCode.ast,
           parserServices: slots.lastSourceCode.parserServices,
           visitorKeys: slots.lastSourceCode.visitorKeys,
-          scopeManager: analyzeScope(slots.lastSourceCode.ast, parserOptions)
+          scopeManager: analyzeScope(slots.lastSourceCode.ast, languageOptions)
         });
       }
     }
@@ -19230,7 +19378,7 @@ class Linter {
     let lintingProblems;
 
     try {
-      lintingProblems = runRules(sourceCode, configuredRules, ruleId => getRule(slots, ruleId), parserOptions, parserName, settings, options.filename, options.disableFixes, slots.cwd, providedOptions.physicalFilename);
+      lintingProblems = runRules(sourceCode, configuredRules, ruleId => getRule(slots, ruleId), parserName, languageOptions, settings, options.filename, options.disableFixes, slots.cwd, providedOptions.physicalFilename);
     } catch (err) {
       err.message += "\nOccurred while linting ".concat(options.filename);
       debug("An error occurred while traversing");
@@ -19275,13 +19423,41 @@ class Linter {
 
   verify(textOrSourceCode, config, filenameOrOptions) {
     debug("Verify");
+    const {
+      configType
+    } = internalSlotsMap.get(this);
     const options = typeof filenameOrOptions === "string" ? {
       filename: filenameOrOptions
-    } : filenameOrOptions || {}; // CLIEngine passes a `ConfigArray` object.
+    } : filenameOrOptions || {};
 
-    if (config && typeof config.extractConfig === "function") {
-      return this._verifyWithConfigArray(textOrSourceCode, config, options);
+    if (config) {
+      if (configType === "flat") {
+        /*
+         * Because of how Webpack packages up the files, we can't
+         * compare directly to `FlatConfigArray` using `instanceof`
+         * because it's not the same `FlatConfigArray` as in the tests.
+         * So, we work around it by assuming an array is, in fact, a
+         * `FlatConfigArray` if it has a `getConfig()` method.
+         */
+        let configArray = config;
+
+        if (!Array.isArray(config) || typeof config.getConfig !== "function") {
+          configArray = new FlatConfigArray(config);
+          configArray.normalizeSync();
+        }
+
+        return this._verifyWithFlatConfigArray(textOrSourceCode, configArray, options, true);
+      }
+
+      if (typeof config.extractConfig === "function") {
+        return this._verifyWithConfigArray(textOrSourceCode, config, options);
+      }
     }
+    /*
+     * If we get to here, it means `config` is just an object rather
+     * than a config array so we can go right into linting.
+     */
+
     /*
      * `Linter` doesn't support `overrides` property in configuration.
      * So we cannot apply multiple processors.
@@ -19293,6 +19469,180 @@ class Linter {
     }
 
     return this._verifyWithoutProcessors(textOrSourceCode, config, options);
+  }
+  /**
+   * Verify with a processor.
+   * @param {string|SourceCode} textOrSourceCode The source code.
+   * @param {FlatConfig} config The config array.
+   * @param {VerifyOptions&ProcessorOptions} options The options.
+   * @param {FlatConfigArray} [configForRecursive] The `ConfigArray` object to apply multiple processors recursively.
+   * @returns {LintMessage[]} The found problems.
+   */
+
+
+  _verifyWithFlatConfigArrayAndProcessor(textOrSourceCode, config, options, configForRecursive) {
+    const filename = options.filename || "<input>";
+    const filenameToExpose = normalizeFilename(filename);
+    const physicalFilename = options.physicalFilename || filenameToExpose;
+    const text = ensureText(textOrSourceCode);
+
+    const preprocess = options.preprocess || (rawText => [rawText]);
+
+    const postprocess = options.postprocess || (messagesList => messagesList.flat());
+
+    const filterCodeBlock = options.filterCodeBlock || (blockFilename => blockFilename.endsWith(".js"));
+
+    const originalExtname = path.extname(filename);
+    const messageLists = preprocess(text, filenameToExpose).map((block, i) => {
+      debug("A code block was found: %o", block.filename || "(unnamed)"); // Keep the legacy behavior.
+
+      if (typeof block === "string") {
+        return this._verifyWithFlatConfigArrayAndWithoutProcessors(block, config, options);
+      }
+
+      const blockText = block.text;
+      const blockName = path.join(filename, "".concat(i, "_").concat(block.filename)); // Skip this block if filtered.
+
+      if (!filterCodeBlock(blockName, blockText)) {
+        debug("This code block was skipped.");
+        return [];
+      } // Resolve configuration again if the file content or extension was changed.
+
+
+      if (configForRecursive && (text !== blockText || path.extname(blockName) !== originalExtname)) {
+        debug("Resolving configuration again because the file content or extension was changed.");
+        return this._verifyWithFlatConfigArray(blockText, configForRecursive, { ...options,
+          filename: blockName,
+          physicalFilename
+        });
+      } // Does lint.
+
+
+      return this._verifyWithFlatConfigArrayAndWithoutProcessors(blockText, config, { ...options,
+        filename: blockName,
+        physicalFilename
+      });
+    });
+    return postprocess(messageLists, filenameToExpose);
+  }
+  /**
+   * Same as linter.verify, except without support for processors.
+   * @param {string|SourceCode} textOrSourceCode The text to parse or a SourceCode object.
+   * @param {FlatConfig} providedConfig An ESLintConfig instance to configure everything.
+   * @param {VerifyOptions} [providedOptions] The optional filename of the file being checked.
+   * @throws {Error} If during rule execution.
+   * @returns {LintMessage[]} The results as an array of messages or an empty array if no messages.
+   */
+
+
+  _verifyWithFlatConfigArrayAndWithoutProcessors(textOrSourceCode, providedConfig, providedOptions) {
+    const slots = internalSlotsMap.get(this);
+    const config = providedConfig || {};
+    const options = normalizeVerifyOptions(providedOptions, config);
+    let text; // evaluate arguments
+
+    if (typeof textOrSourceCode === "string") {
+      slots.lastSourceCode = null;
+      text = textOrSourceCode;
+    } else {
+      slots.lastSourceCode = textOrSourceCode;
+      text = textOrSourceCode.text;
+    }
+
+    const languageOptions = config.languageOptions;
+    languageOptions.ecmaVersion = normalizeEcmaVersionForLanguageOptions(languageOptions.ecmaVersion); // add configured globals and language globals
+
+    const configuredGlobals = { ...getGlobalsForEcmaVersion(languageOptions.ecmaVersion),
+      ...(languageOptions.sourceType === "commonjs" ? globals.commonjs : void 0),
+      ...languageOptions.globals
+    }; // Espree expects this information to be passed in
+
+    if (isEspree(languageOptions.parser)) {
+      const parserOptions = languageOptions.parserOptions;
+
+      if (languageOptions.sourceType) {
+        parserOptions.sourceType = languageOptions.sourceType;
+
+        if (parserOptions.sourceType === "module" && parserOptions.ecmaFeatures && parserOptions.ecmaFeatures.globalReturn) {
+          parserOptions.ecmaFeatures.globalReturn = false;
+        }
+      }
+    }
+
+    const settings = config.settings || {};
+
+    if (!slots.lastSourceCode) {
+      const parseResult = parse(text, languageOptions, options.filename);
+
+      if (!parseResult.success) {
+        return [parseResult.error];
+      }
+
+      slots.lastSourceCode = parseResult.sourceCode;
+    } else {
+      /*
+       * If the given source code object as the first argument does not have scopeManager, analyze the scope.
+       * This is for backward compatibility (SourceCode is frozen so it cannot rebind).
+       */
+      if (!slots.lastSourceCode.scopeManager) {
+        slots.lastSourceCode = new SourceCode({
+          text: slots.lastSourceCode.text,
+          ast: slots.lastSourceCode.ast,
+          parserServices: slots.lastSourceCode.parserServices,
+          visitorKeys: slots.lastSourceCode.visitorKeys,
+          scopeManager: analyzeScope(slots.lastSourceCode.ast, languageOptions)
+        });
+      }
+    }
+
+    const sourceCode = slots.lastSourceCode;
+    const commentDirectives = options.allowInlineConfig ? getDirectiveComments(options.filename, sourceCode.ast, ruleId => getRuleFromConfig(ruleId, config), options.warnInlineConfig) : {
+      configuredRules: {},
+      enabledGlobals: {},
+      exportedVariables: {},
+      problems: [],
+      disableDirectives: []
+    }; // augment global scope with declared global variables
+
+    addDeclaredGlobals(sourceCode.scopeManager.scopes[0], configuredGlobals, {
+      exportedVariables: commentDirectives.exportedVariables,
+      enabledGlobals: commentDirectives.enabledGlobals
+    });
+    const configuredRules = Object.assign({}, config.rules, commentDirectives.configuredRules);
+    let lintingProblems;
+
+    try {
+      lintingProblems = runRules(sourceCode, configuredRules, ruleId => getRuleFromConfig(ruleId, config), void 0, languageOptions, settings, options.filename, options.disableFixes, slots.cwd, providedOptions.physicalFilename);
+    } catch (err) {
+      err.message += "\nOccurred while linting ".concat(options.filename);
+      debug("An error occurred while traversing");
+      debug("Filename:", options.filename);
+
+      if (err.currentNode) {
+        const {
+          line
+        } = err.currentNode.loc.start;
+        debug("Line:", line);
+        err.message += ":".concat(line);
+      }
+
+      debug("Parser Options:", languageOptions.parserOptions); // debug("Parser Path:", parserName);
+
+      debug("Settings:", settings);
+
+      if (err.ruleId) {
+        err.message += "\nRule: \"".concat(err.ruleId, "\"");
+      }
+
+      throw err;
+    }
+
+    return applyDisableDirectives({
+      directives: commentDirectives.disableDirectives,
+      disableFixes: options.disableFixes,
+      problems: lintingProblems.concat(commentDirectives.problems).sort((problemA, problemB) => problemA.line - problemB.line || problemA.column - problemB.column),
+      reportUnusedDisableDirectives: options.reportUnusedDisableDirectives
+    });
   }
   /**
    * Verify a given code with `ConfigArray`.
@@ -19327,6 +19677,49 @@ class Linter {
     }
 
     return this._verifyWithoutProcessors(textOrSourceCode, config, options);
+  }
+  /**
+   * Verify a given code with a flat config.
+   * @param {string|SourceCode} textOrSourceCode The source code.
+   * @param {FlatConfigArray} configArray The config array.
+   * @param {VerifyOptions&ProcessorOptions} options The options.
+   * @param {boolean} [firstCall=false] Indicates if this is being called directly
+   *      from verify(). (TODO: Remove once eslintrc is removed.)
+   * @returns {LintMessage[]} The found problems.
+   */
+
+
+  _verifyWithFlatConfigArray(textOrSourceCode, configArray, options) {
+    let firstCall = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
+    debug("With flat config: %s", options.filename); // we need a filename to match configs against
+
+    const filename = options.filename || "<input>"; // Store the config array in order to get plugin envs and rules later.
+
+    internalSlotsMap.get(this).lastConfigArray = configArray;
+    const config = configArray.getConfig(filename); // Verify.
+
+    if (config.processor) {
+      debug("Apply the processor: %o", config.processor);
+      const {
+        preprocess,
+        postprocess,
+        supportsAutofix
+      } = config.processor;
+      const disableFixes = options.disableFixes || !supportsAutofix;
+      return this._verifyWithFlatConfigArrayAndProcessor(textOrSourceCode, config, { ...options,
+        filename,
+        disableFixes,
+        postprocess,
+        preprocess
+      }, configArray);
+    } // check for options-based processing
+
+
+    if (firstCall && (options.preprocess || options.postprocess)) {
+      return this._verifyWithFlatConfigArrayAndProcessor(textOrSourceCode, config, options);
+    }
+
+    return this._verifyWithFlatConfigArrayAndWithoutProcessors(textOrSourceCode, config, options);
   }
   /**
    * Verify with a processor.
@@ -19401,6 +19794,7 @@ class Linter {
 
 
   defineRule(ruleId, ruleModule) {
+    assertEslintrcConfig(this);
     internalSlotsMap.get(this).ruleMap.define(ruleId, ruleModule);
   }
   /**
@@ -19411,6 +19805,7 @@ class Linter {
 
 
   defineRules(rulesToDefine) {
+    assertEslintrcConfig(this);
     Object.getOwnPropertyNames(rulesToDefine).forEach(ruleId => {
       this.defineRule(ruleId, rulesToDefine[ruleId]);
     });
@@ -19422,6 +19817,7 @@ class Linter {
 
 
   getRules() {
+    assertEslintrcConfig(this);
     const {
       lastConfigArray,
       ruleMap
@@ -19443,13 +19839,14 @@ class Linter {
 
 
   defineParser(parserId, parserModule) {
+    assertEslintrcConfig(this);
     internalSlotsMap.get(this).parserMap.set(parserId, parserModule);
   }
   /**
    * Performs multiple autofix passes over the text until as many fixes as possible
    * have been applied.
    * @param {string} text The source text to apply fixes to.
-   * @param {ConfigData|ConfigArray} config The ESLint config object to use.
+   * @param {ConfigData|ConfigArray|FlatConfigArray} config The ESLint config object to use.
    * @param {VerifyOptions&ProcessorOptions&FixOptions} options The ESLint options object to use.
    * @returns {{fixed:boolean,messages:LintMessage[],output:string}} The result of the fix operation as returned from the
    *      SourceCodeFixer.
@@ -23594,7 +23991,16 @@ function normalizeOptions(options) {
     const sourceType = normalizeSourceType(options.sourceType);
     const ranges = options.range === true;
     const locations = options.loc === true;
-    const allowReserved = ecmaVersion === 3 ? "never" : false;
+
+    if (ecmaVersion !== 3 && options.allowReserved) {
+
+        // a value of `false` is intentionally allowed here, so a shared config can overwrite it when needed
+        throw new Error("`allowReserved` is only supported when ecmaVersion is 3");
+    }
+    if (typeof options.allowReserved !== "undefined" && typeof options.allowReserved !== "boolean") {
+        throw new Error("`allowReserved`, when present, must be `true` or `false`");
+    }
+    const allowReserved = ecmaVersion === 3 ? (options.allowReserved || "never") : false;
     const ecmaFeatures = options.ecmaFeatures || {};
     const allowReturnOutsideFunction = options.sourceType === "commonjs" ||
         Boolean(ecmaFeatures.globalReturn);
@@ -23940,7 +24346,7 @@ var espree = () => Parser => {
     };
 };
 
-const version$1 = "9.1.0";
+const version$1 = "9.2.0";
 
 /**
  * @fileoverview Main Espree file that converts Acorn into Esprima output.
@@ -34210,7 +34616,7 @@ module.exports = merge;
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"eslint","version":"8.3.0","author":"Nicholas C. Zakas <nicholas+npm@nczconsulting.com>","description":"An AST-based pattern checker for JavaScript.","bin":{"eslint":"./bin/eslint.js"},"main":"./lib/api.js","exports":{"./package.json":"./package.json",".":"./lib/api.js","./use-at-your-own-risk":"./lib/unsupported-api.js"},"scripts":{"test":"node Makefile.js test","test:cli":"mocha","lint":"node Makefile.js lint","fix":"node Makefile.js lint -- fix","fuzz":"node Makefile.js fuzz","generate-release":"node Makefile.js generateRelease","generate-alpharelease":"node Makefile.js generatePrerelease -- alpha","generate-betarelease":"node Makefile.js generatePrerelease -- beta","generate-rcrelease":"node Makefile.js generatePrerelease -- rc","publish-release":"node Makefile.js publishRelease","gensite":"node Makefile.js gensite","webpack":"node Makefile.js webpack","perf":"node Makefile.js perf"},"gitHooks":{"pre-commit":"lint-staged"},"lint-staged":{"*.js":"eslint --fix","*.md":"markdownlint"},"files":["LICENSE","README.md","bin","conf","lib","messages"],"repository":"eslint/eslint","funding":"https://opencollective.com/eslint","homepage":"https://eslint.org","bugs":"https://github.com/eslint/eslint/issues/","dependencies":{"@eslint/eslintrc":"^1.0.4","@humanwhocodes/config-array":"^0.6.0","ajv":"^6.10.0","chalk":"^4.0.0","cross-spawn":"^7.0.2","debug":"^4.3.2","doctrine":"^3.0.0","enquirer":"^2.3.5","escape-string-regexp":"^4.0.0","eslint-scope":"^7.1.0","eslint-utils":"^3.0.0","eslint-visitor-keys":"^3.1.0","espree":"^9.1.0","esquery":"^1.4.0","esutils":"^2.0.2","fast-deep-equal":"^3.1.3","file-entry-cache":"^6.0.1","functional-red-black-tree":"^1.0.1","glob-parent":"^6.0.1","globals":"^13.6.0","ignore":"^4.0.6","import-fresh":"^3.0.0","imurmurhash":"^0.1.4","is-glob":"^4.0.0","js-yaml":"^4.1.0","json-stable-stringify-without-jsonify":"^1.0.1","levn":"^0.4.1","lodash.merge":"^4.6.2","minimatch":"^3.0.4","natural-compare":"^1.4.0","optionator":"^0.9.1","progress":"^2.0.0","regexpp":"^3.2.0","semver":"^7.2.1","strip-ansi":"^6.0.1","strip-json-comments":"^3.1.0","text-table":"^0.2.0","v8-compile-cache":"^2.0.3"},"devDependencies":{"@babel/core":"^7.4.3","@babel/preset-env":"^7.4.3","babel-loader":"^8.0.5","chai":"^4.0.1","cheerio":"^0.22.0","common-tags":"^1.8.0","core-js":"^3.1.3","dateformat":"^4.5.1","ejs":"^3.0.2","eslint":"file:.","eslint-config-eslint":"file:packages/eslint-config-eslint","eslint-plugin-eslint-comments":"^3.2.0","eslint-plugin-eslint-plugin":"^4.0.1","eslint-plugin-internal-rules":"file:tools/internal-rules","eslint-plugin-jsdoc":"^37.0.0","eslint-plugin-node":"^11.1.0","eslint-release":"^3.2.0","eslump":"^3.0.0","esprima":"^4.0.1","fs-teardown":"^0.1.3","glob":"^7.1.6","jsdoc":"^3.5.5","karma":"^6.1.1","karma-chrome-launcher":"^3.1.0","karma-mocha":"^2.0.1","karma-mocha-reporter":"^2.2.5","karma-webpack":"^5.0.0","lint-staged":"^11.0.0","load-perf":"^0.2.0","markdownlint":"^0.23.1","markdownlint-cli":"^0.28.1","memfs":"^3.0.1","mocha":"^8.3.2","mocha-junit-reporter":"^2.0.0","node-polyfill-webpack-plugin":"^1.0.3","npm-license":"^0.3.3","nyc":"^15.0.1","proxyquire":"^2.0.1","puppeteer":"^9.1.1","recast":"^0.20.4","regenerator-runtime":"^0.13.2","shelljs":"^0.8.2","sinon":"^11.0.0","temp":"^0.9.0","webpack":"^5.23.0","webpack-cli":"^4.5.0","yorkie":"^2.0.0"},"keywords":["ast","lint","javascript","ecmascript","espree"],"license":"MIT","engines":{"node":"^12.22.0 || ^14.17.0 || >=16.0.0"}}');
+module.exports = JSON.parse('{"name":"eslint","version":"8.4.0","author":"Nicholas C. Zakas <nicholas+npm@nczconsulting.com>","description":"An AST-based pattern checker for JavaScript.","bin":{"eslint":"./bin/eslint.js"},"main":"./lib/api.js","exports":{"./package.json":"./package.json",".":"./lib/api.js","./use-at-your-own-risk":"./lib/unsupported-api.js"},"scripts":{"test":"node Makefile.js test","test:cli":"mocha","lint":"node Makefile.js lint","fix":"node Makefile.js lint -- fix","fuzz":"node Makefile.js fuzz","generate-release":"node Makefile.js generateRelease","generate-alpharelease":"node Makefile.js generatePrerelease -- alpha","generate-betarelease":"node Makefile.js generatePrerelease -- beta","generate-rcrelease":"node Makefile.js generatePrerelease -- rc","publish-release":"node Makefile.js publishRelease","gensite":"node Makefile.js gensite","webpack":"node Makefile.js webpack","perf":"node Makefile.js perf"},"gitHooks":{"pre-commit":"lint-staged"},"lint-staged":{"*.js":"eslint --fix","*.md":"markdownlint"},"files":["LICENSE","README.md","bin","conf","lib","messages"],"repository":"eslint/eslint","funding":"https://opencollective.com/eslint","homepage":"https://eslint.org","bugs":"https://github.com/eslint/eslint/issues/","dependencies":{"@eslint/eslintrc":"^1.0.5","@humanwhocodes/config-array":"^0.9.2","ajv":"^6.10.0","chalk":"^4.0.0","cross-spawn":"^7.0.2","debug":"^4.3.2","doctrine":"^3.0.0","enquirer":"^2.3.5","escape-string-regexp":"^4.0.0","eslint-scope":"^7.1.0","eslint-utils":"^3.0.0","eslint-visitor-keys":"^3.1.0","espree":"^9.2.0","esquery":"^1.4.0","esutils":"^2.0.2","fast-deep-equal":"^3.1.3","file-entry-cache":"^6.0.1","functional-red-black-tree":"^1.0.1","glob-parent":"^6.0.1","globals":"^13.6.0","ignore":"^4.0.6","import-fresh":"^3.0.0","imurmurhash":"^0.1.4","is-glob":"^4.0.0","js-yaml":"^4.1.0","json-stable-stringify-without-jsonify":"^1.0.1","levn":"^0.4.1","lodash.merge":"^4.6.2","minimatch":"^3.0.4","natural-compare":"^1.4.0","optionator":"^0.9.1","progress":"^2.0.0","regexpp":"^3.2.0","semver":"^7.2.1","strip-ansi":"^6.0.1","strip-json-comments":"^3.1.0","text-table":"^0.2.0","v8-compile-cache":"^2.0.3"},"devDependencies":{"@babel/core":"^7.4.3","@babel/preset-env":"^7.4.3","babel-loader":"^8.0.5","chai":"^4.0.1","cheerio":"^0.22.0","common-tags":"^1.8.0","core-js":"^3.1.3","dateformat":"^4.5.1","ejs":"^3.0.2","eslint":"file:.","eslint-config-eslint":"file:packages/eslint-config-eslint","eslint-plugin-eslint-comments":"^3.2.0","eslint-plugin-eslint-plugin":"^4.0.1","eslint-plugin-internal-rules":"file:tools/internal-rules","eslint-plugin-jsdoc":"^37.0.0","eslint-plugin-node":"^11.1.0","eslint-release":"^3.2.0","eslump":"^3.0.0","esprima":"^4.0.1","fs-teardown":"^0.1.3","glob":"^7.1.6","jsdoc":"^3.5.5","karma":"^6.1.1","karma-chrome-launcher":"^3.1.0","karma-mocha":"^2.0.1","karma-mocha-reporter":"^2.2.5","karma-webpack":"^5.0.0","lint-staged":"^11.0.0","load-perf":"^0.2.0","markdownlint":"^0.24.0","markdownlint-cli":"^0.30.0","memfs":"^3.0.1","mocha":"^8.3.2","mocha-junit-reporter":"^2.0.0","node-polyfill-webpack-plugin":"^1.0.3","npm-license":"^0.3.3","nyc":"^15.0.1","proxyquire":"^2.0.1","puppeteer":"^9.1.1","recast":"^0.20.4","regenerator-runtime":"^0.13.2","shelljs":"^0.8.2","sinon":"^11.0.0","temp":"^0.9.0","webpack":"^5.23.0","webpack-cli":"^4.5.0","yorkie":"^2.0.0"},"keywords":["ast","lint","javascript","ecmascript","espree"],"license":"MIT","engines":{"node":"^12.22.0 || ^14.17.0 || >=16.0.0"}}');
 
 /***/ }),
 /* 444 */
@@ -58453,6 +58859,8 @@ function isPropertyDescriptor(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -61093,6 +61501,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -61353,6 +61763,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -61723,6 +62135,8 @@ function getArrayMethodName(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -61888,6 +62302,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -62186,6 +62602,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -62482,6 +62900,8 @@ function hasBlockBody(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -62638,6 +63058,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -62796,6 +63218,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -62923,6 +63347,8 @@ module.exports = {
 const util = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -63099,6 +63525,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -63292,6 +63720,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     deprecated: true,
@@ -63470,6 +63900,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -63915,6 +64347,8 @@ function createRegExpForIgnorePatterns(normalizedOptions) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -64153,6 +64587,8 @@ module.exports = /[A-Za-z\xAA\xB5\xBA\xC0-\xD6\xD8-\xF6\xF8-\u02C1\u02C6-\u02D1\
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -64394,6 +64830,8 @@ function normalizeOptions(optionValue, ecmaVersion) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -64691,6 +65129,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -64875,6 +65315,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -65175,6 +65617,8 @@ const {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -65345,6 +65789,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -65594,6 +66040,8 @@ function isClassConstructor(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -65740,6 +66188,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -65996,6 +66446,8 @@ function isPossibleConstructor(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -66301,6 +66753,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -66773,6 +67227,8 @@ const DEFAULT_COMMENT_PATTERN = /^no default$/iu; //----------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -66863,6 +67319,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -66907,6 +67365,7 @@ module.exports = {
  * @author Chiawen Chen
  */
 
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -66971,6 +67430,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -67085,6 +67546,8 @@ const keywords = __webpack_require__(583); //-----------------------------------
 const validIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/u; // `null` literal must be handled separately.
 
 const literalTypesToCheck = new Set(["string", "boolean"]);
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -67239,6 +67702,8 @@ module.exports = ["abstract", "boolean", "break", "byte", "case", "catch", "char
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -67357,6 +67822,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -67518,6 +67985,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -67654,6 +68123,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -67938,6 +68409,8 @@ const optionsObject = {
   },
   additionalProperties: false
 };
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -68142,6 +68615,8 @@ function isFunctionName(variable) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -68302,6 +68777,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -68406,6 +68883,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -68524,6 +69003,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -68814,6 +69295,8 @@ const OVERRIDE_SCHEMA = {
     additionalProperties: false
   }]
 };
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -69030,6 +69513,8 @@ function isReachable(segment) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -69205,6 +69690,8 @@ function isShadowed(scope, node) {
   const reference = findReference(scope, node);
   return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -69335,6 +69822,8 @@ function isAccessorKind(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -69477,6 +69966,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -69553,6 +70044,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -69711,6 +70204,8 @@ function isShorthandPropertyDefinition(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -69888,6 +70383,8 @@ function isPropertyNameInDestructuring(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -70017,6 +70514,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -70177,6 +70676,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -70423,6 +70924,8 @@ const {
 } = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -70911,6 +71414,8 @@ const ELEMENT_LIST_SCHEMA = {
     enum: ["first", "off"]
   }]
 };
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -73266,6 +73771,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 
 /* istanbul ignore next: this rule has known coverage issues, but it's deprecated and shouldn't be updated in the future anyway. */
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -74320,6 +74827,8 @@ function isInitialized(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -74443,6 +74952,8 @@ const QUOTE_SETTINGS = {
 }; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -74636,6 +75147,8 @@ function initOptions(toOptions, fromOptions) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -75235,6 +75748,8 @@ function isCloseParenOfTemplate(token) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -75783,6 +76298,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -75902,6 +76419,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -76034,6 +76553,8 @@ function getCommentLineNums(comments) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -76443,6 +76964,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -76642,6 +77165,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -76832,6 +77357,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -76912,6 +77439,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -77116,6 +77645,8 @@ const OPTIONS_OR_INTEGER_SCHEMA = {
 }; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -77486,6 +78017,8 @@ function range(start, end) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -77702,6 +78235,8 @@ function getCommentLineNumbers(comments) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -77713,7 +78248,7 @@ module.exports = {
     },
     schema: [OPTIONS_OR_INTEGER_SCHEMA],
     messages: {
-      exceed: "{{name}} has too many lines ({{lineCount}}). Maximum allowed is {{maxLines}}."
+      exceed: "{{name}} has exceeded the limit of lines allowed by {{linesExceed}}. Maximum allowed number of lines per function is {{maxLines}}."
     }
   },
 
@@ -77806,18 +78341,28 @@ module.exports = {
       }
 
       let lineCount = 0;
+      let comments = 0;
+      let blankLines = 0;
 
       for (let i = node.loc.start.line - 1; i < node.loc.end.line; ++i) {
         const line = lines[i];
 
         if (skipComments) {
           if (commentLineNumbers.has(i + 1) && isFullLineComment(line, i + 1, commentLineNumbers.get(i + 1))) {
+            if (lineCount <= maxLines) {
+              comments++;
+            }
+
             continue;
           }
         }
 
         if (skipBlankLines) {
           if (line.match(/^\s*$/u)) {
+            if (lineCount <= maxLines) {
+              blankLines++;
+            }
+
             continue;
           }
         }
@@ -77827,12 +78372,21 @@ module.exports = {
 
       if (lineCount > maxLines) {
         const name = upperCaseFirst(astUtils.getFunctionNameWithKind(funcNode));
+        const linesExceed = lineCount - maxLines;
+        const loc = {
+          start: {
+            line: node.loc.start.line + maxLines + (comments + blankLines),
+            column: 0
+          },
+          end: node.loc.end
+        };
         context.report({
           node,
+          loc,
           messageId: "exceed",
           data: {
             name,
-            lineCount,
+            linesExceed,
             maxLines
           }
         });
@@ -77863,6 +78417,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -77984,6 +78540,8 @@ const {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -78081,6 +78639,8 @@ const {
 } = __webpack_require__(572); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -78259,6 +78819,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -78447,6 +79009,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -78912,6 +79476,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -79116,6 +79682,8 @@ function calculateCapIsNewExceptions(config) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -79325,6 +79893,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -79408,6 +79978,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -79656,6 +80228,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -79879,6 +80453,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -80072,6 +80648,8 @@ function isGlobalThisReferenceOrGlobalWindow(scope, node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -80138,6 +80716,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -80188,6 +80768,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -80268,6 +80850,8 @@ function isLooped(node, parent) {
       return false;
   }
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -80338,6 +80922,8 @@ module.exports = {
 const BITWISE_OPERATORS = ["^", "|", "&", "<<", ">>", ">>>", "^=", "|=", "&=", "<<=", ">>=", ">>>=", "~"]; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -80454,6 +81040,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     deprecated: true,
@@ -80503,6 +81091,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -80551,6 +81141,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -80622,6 +81214,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -80701,6 +81295,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -80764,6 +81360,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -80842,6 +81440,8 @@ const NODE_DESCRIPTIONS = {
 }; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -80985,6 +81585,8 @@ function isConditional(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -81060,6 +81662,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -81182,6 +81786,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -81242,6 +81848,8 @@ module.exports = {
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -81353,6 +81961,7 @@ module.exports = {
         case "ArrowFunctionExpression":
         case "FunctionExpression":
         case "ObjectExpression":
+        case "ClassExpression":
           return true;
 
         case "TemplateLiteral":
@@ -81389,6 +81998,9 @@ module.exports = {
             const isRightShortCircuit = inBooleanPosition && isRightConstant && isLogicalIdentity(node.right, node.operator);
             return isLeftConstant && isRightConstant || isLeftShortCircuit || isRightShortCircuit;
           }
+
+        case "NewExpression":
+          return inBooleanPosition;
 
         case "AssignmentExpression":
           if (node.operator === "=") {
@@ -81526,6 +82138,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -81584,6 +82198,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -81658,6 +82274,8 @@ const collector = new class {
 }(); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -84190,6 +84808,8 @@ exports.visitRegExpAST = visitRegExpAST;
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -84231,6 +84851,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -84274,6 +84896,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -84326,6 +84950,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -84407,6 +85033,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -84562,6 +85190,8 @@ const splitByAnd = splitByLogicalOperator.bind(null, "&&"); //------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -84713,6 +85343,8 @@ class ObjectInfo {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -84789,6 +85421,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -85073,6 +85707,8 @@ function handleImportsExports(context, modules, declarationType, includeExports)
     }
   };
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -85135,6 +85771,8 @@ const astUtils = __webpack_require__(548);
 const FixTracker = __webpack_require__(662); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -85692,6 +86330,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -85793,6 +86433,8 @@ module.exports = {
 const regex = /^([^\\[]|\\.|\[([^\\\]]|\\.)+\])*$/u; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -85907,6 +86549,8 @@ function getKind(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -85992,6 +86636,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -86050,6 +86696,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -86116,6 +86764,8 @@ function isMember(node, name) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -86358,6 +87008,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -86416,6 +87068,8 @@ const astUtils = __webpack_require__(548);
 const globals = __webpack_require__(492); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -86571,6 +87225,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 const SIDE_EFFECT_FREE_NODE_TYPES = new Set(["Literal", "Identifier", "ThisExpression", "FunctionExpression"]); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -86761,6 +87417,8 @@ const eslintUtils = __webpack_require__(501);
 const precedence = astUtils.getPrecedence; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -87048,6 +87706,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -87204,6 +87864,8 @@ const {
 } = __webpack_require__(501);
 
 const astUtils = __webpack_require__(548);
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -88358,6 +89020,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -88514,6 +89178,8 @@ function hasBlankLinesBetween(node, token) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -88616,6 +89282,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -88681,6 +89349,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -88757,6 +89427,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -88992,6 +89664,8 @@ function getNonEmptyOperand(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -89187,6 +89861,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -89318,6 +89994,8 @@ const {
 } = __webpack_require__(501); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -89559,6 +90237,8 @@ function getWriteNode(id) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -89638,6 +90318,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -89775,6 +90457,8 @@ function getAllowedBodyDescription(node) {
 
   return "program";
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -89853,6 +90537,8 @@ const validFlags = /[dgimsuy]/gu;
 const undefined1 = void 0; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -90005,6 +90691,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -90156,6 +90844,8 @@ const IRREGULAR_LINE_TERMINATORS = /[\u2028\u2029]/mgu;
 const LINE_BREAK = astUtils.createGlobalLinebreakMatcher(); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -90403,6 +91093,8 @@ const {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -90450,6 +91142,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -90523,6 +91217,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -90677,6 +91373,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -90800,6 +91498,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -91002,6 +91702,8 @@ function isSafe(loopNode, reference) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -91068,6 +91770,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -91294,6 +91998,8 @@ function normalizeIgnoreValue(x) {
 
   return x;
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -91576,6 +92282,8 @@ const kinds = Object.keys(hasCharacterSequence); //-----------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -91845,6 +92553,8 @@ function getChildNode(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -91987,6 +92697,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -92189,6 +92901,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -92299,6 +93013,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -92362,6 +93078,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -92496,6 +93214,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -92553,6 +93273,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -92706,6 +93428,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -92797,6 +93521,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -92898,6 +93624,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -92943,6 +93671,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -92986,6 +93716,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -93036,6 +93768,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 const callMethods = new Set(["apply", "bind", "call"]); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -93109,6 +93843,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -93160,6 +93896,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     deprecated: true,
@@ -93204,6 +93942,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -93257,6 +93997,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -93318,6 +94060,8 @@ function getUnicodeEscape(character) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -93467,6 +94211,8 @@ function getReportNodeName(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -93533,6 +94279,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -93575,6 +94323,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -93630,6 +94380,8 @@ module.exports = {
 //------------------------------------------------------------------------------
 
 const stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/u;
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -93856,6 +94608,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     deprecated: true,
@@ -93943,6 +94697,8 @@ function isForLoopAfterthought(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -94009,6 +94765,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     deprecated: true,
@@ -94057,6 +94815,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -94154,6 +94914,8 @@ function isPromiseExecutor(node, scope) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -94230,6 +94992,8 @@ const {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -94277,6 +95041,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -94345,6 +95111,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -94530,6 +95298,8 @@ function isString(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -94681,6 +95451,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -94768,6 +95540,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -94949,6 +95723,8 @@ const arrayOfStringsOrObjectPatterns = {
     uniqueItems: true
   }]
 };
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -95546,6 +96322,8 @@ const arrayOfStringsOrObjects = {
   },
   uniqueItems: true
 };
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     deprecated: true,
@@ -95724,6 +96502,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -95908,6 +96688,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -95989,6 +96771,8 @@ const SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionE
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -96056,6 +96840,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -96168,6 +96954,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -96307,6 +97095,8 @@ function eachSelfAssignment(left, right, props, report) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -96378,6 +97168,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -96447,6 +97239,8 @@ const DEFAULT_OPTIONS = {
 }; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -96674,6 +97468,8 @@ function getOuterScope(scope) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -96779,6 +97575,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -96997,6 +97795,8 @@ function safelyShadowsUndefined(variable) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -97047,6 +97847,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -97120,6 +97922,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -97168,6 +97972,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -97229,6 +98035,8 @@ const tabRegex = /\t+/gu;
 const anyNonWhitespaceRegex = /\S/u; //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -97302,6 +98110,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -97345,6 +98155,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -97405,6 +98217,8 @@ function isConstructorFunction(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -97676,6 +98490,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -97731,6 +98547,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -97915,6 +98733,8 @@ function hasTypeOfOperator(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -97979,6 +98799,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -98053,6 +98875,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -98131,6 +98955,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -98411,6 +99237,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -98666,6 +99494,8 @@ function updateModifiedFlag(conditions, modifiers) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -98892,6 +99722,8 @@ const OR_PRECEDENCE = astUtils.getPrecedence({
 }); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -99133,6 +99965,8 @@ class ConsecutiveRange {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -99349,6 +100183,8 @@ function getDifference(arrA, arrB) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -99458,6 +100294,8 @@ const SENTINEL_NODE_TYPE_BREAK = /^(?:Program|(?:Function|Class)(?:Declaration|E
 const SENTINEL_NODE_TYPE_CONTINUE = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|DoWhileStatement|WhileStatement|ForOfStatement|ForInStatement|ForStatement)$/u; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -99599,6 +100437,8 @@ function isNegation(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -99697,6 +100537,8 @@ const UNSAFE_RELATIONAL_OPERATORS = new Set(["in", "instanceof"]);
 function isDestructuringPattern(node) {
   return node.type === "ObjectPattern" || node.type === "ArrayPattern";
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -99926,6 +100768,8 @@ function alwaysTrue() {
 function alwaysFalse() {
   return false;
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -100119,6 +100963,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -100234,6 +101080,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -100439,6 +101287,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -101256,6 +102106,8 @@ function isEvaluatedDuringInitialization(reference) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -101429,6 +102281,8 @@ function isNegativeLookaround(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -101605,6 +102459,8 @@ function isValidThisArg(expectedThis, thisArg, sourceCode) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -101661,6 +102517,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -101791,6 +102649,8 @@ function hasUselessComputedKey(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -101945,6 +102805,8 @@ function getRight(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -102104,6 +102966,8 @@ function isRedundantSuperCall(body, ctorParams) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -102258,6 +103122,8 @@ function parseRegExp(regExpText) {
   });
   return charList;
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -102434,6 +103300,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -102647,6 +103515,8 @@ function isInFinally(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -103055,6 +103925,8 @@ function hasNameDisallowedForLetDeclarations(variable) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -103213,6 +104085,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -103276,6 +104150,8 @@ const astUtils = __webpack_require__(548);
 const CHAR_LIMIT = 40; //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -103452,6 +104328,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -103561,6 +104439,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -103605,6 +104485,8 @@ module.exports = {
 const POSITION_SCHEMA = {
   enum: ["beside", "below", "any"]
 };
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -103858,6 +104740,8 @@ function areLineBreaksRequired(node, options, first, last) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -104034,6 +104918,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -104359,6 +105245,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -104465,6 +105353,8 @@ const OPTIONS = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -104950,6 +105840,8 @@ function isInStatementList(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -105528,6 +106420,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -105656,6 +106550,8 @@ function isNonCommutativeOperatorWithShorthand(operator) {
 function canBeFixed(node) {
   return node.type === "Identifier" || node.type === "MemberExpression" && (node.object.type === "Identifier" || node.object.type === "ThisExpression") && (!node.computed || node.property.type === "Literal");
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -105828,6 +106724,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -106060,6 +106958,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -106771,6 +107671,8 @@ const StatementTypes = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -107130,6 +108032,8 @@ function hasDuplicateParams(paramsList) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -107668,6 +108572,8 @@ function findUp(node, type, shouldStop) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -107841,6 +108747,8 @@ const PRECEDENCE_OF_ASSIGNMENT_EXPR = astUtils.getPrecedence({
 }); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -108183,6 +109091,8 @@ function parenthesizeIfShould(text, shouldParenthesize) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -108309,6 +109219,8 @@ const parser = new regexpp.RegExpParser(); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -108432,6 +109344,8 @@ function isParseInt(calleeNode) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -108764,6 +109678,8 @@ function defineFixer(node, sourceCode) {
     }
   };
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -108829,6 +109745,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -108943,6 +109861,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -109098,6 +110018,8 @@ function isStaticTemplateLiteral(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -109296,6 +110218,8 @@ function isNotNormalMemberAccess(reference) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -109389,6 +110313,8 @@ function isValidThisArg(expectedThis, thisArg, context) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -109563,6 +110489,8 @@ function endsWithTemplateCurly(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -109731,6 +110659,8 @@ const astUtils = __webpack_require__(548);
 const keywords = __webpack_require__(583); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -110105,6 +111035,8 @@ const AVOID_ESCAPE = "avoid-escape"; //-----------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -110421,6 +111353,8 @@ function isDefaultRadix(radix) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -110726,6 +111660,8 @@ class SegmentInfo {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -110903,6 +111839,8 @@ function capitalizeFirstLetter(text) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -110997,6 +111935,7 @@ module.exports = {
  * @deprecated in ESLint v5.10.0
  */
 
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -111135,6 +112074,8 @@ const {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -111205,6 +112146,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -111287,6 +112230,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -111420,6 +112365,8 @@ const FixTracker = __webpack_require__(662);
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -111802,6 +112749,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -112098,6 +113047,8 @@ function isLastChild(node) {
   const nodeList = getChildren(node.parent);
   return nodeList !== null && nodeList[nodeList.length - 1] === node; // before `}` or etc.
 }
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -112198,6 +113149,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -112497,6 +113450,8 @@ const isValidOrders = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -112666,6 +113621,8 @@ try {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "suggestion",
@@ -112771,6 +113728,8 @@ function isFunctionBody(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -112941,6 +113900,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -113088,6 +114049,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -113391,6 +114354,8 @@ const {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -113588,6 +114553,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -114060,6 +115027,8 @@ function createNeverStylePattern(markers) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -114352,6 +115321,8 @@ function isSimpleParameterList(params) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -114612,6 +115583,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -114745,6 +115718,8 @@ const astUtils = __webpack_require__(548); //-----------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -114814,6 +115789,8 @@ module.exports = {
 const astUtils = __webpack_require__(548); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -114956,6 +115933,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -115046,6 +116025,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -115135,6 +116116,8 @@ function isNaNIdentifier(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -115267,6 +116250,8 @@ module.exports = {
 const doctrine = __webpack_require__(844); //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -118293,6 +119278,8 @@ module.exports = JSON.parse('{"name":"doctrine","description":"JSDoc parser","ho
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "problem",
@@ -118379,6 +119366,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -118554,6 +119543,8 @@ function isCalleeOfNewExpression(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 
 module.exports = {
   meta: {
@@ -118715,6 +119706,8 @@ module.exports = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('../shared/types').Rule} */
+
 module.exports = {
   meta: {
     type: "layout",
@@ -118770,6 +119763,8 @@ module.exports = {
  //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 module.exports = {
   meta: {
@@ -119019,6 +120014,8 @@ function getNormalizedLiteral(node) {
 } //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
+/** @type {import('../shared/types').Rule} */
 
 
 module.exports = {
@@ -119594,21 +120591,4293 @@ module.exports = JSON.parse('{"rules":{"generator-star":["generator-star-spacing
 
 /***/ }),
 /* 859 */
+/***/ ((module) => {
+
+"use strict";
+/**
+ * @fileoverview Shared functions to work with configs.
+ * @author Nicholas C. Zakas
+ */
+ //-----------------------------------------------------------------------------
+// Functions
+//-----------------------------------------------------------------------------
+
+/**
+ * Parses a ruleId into its plugin and rule parts.
+ * @param {string} ruleId The rule ID to parse.
+ * @returns {{pluginName:string,ruleName:string}} The plugin and rule
+ *      parts of the ruleId;
+ */
+
+function parseRuleId(ruleId) {
+  let pluginName, ruleName; // distinguish between core rules and plugin rules
+
+  if (ruleId.includes("/")) {
+    pluginName = ruleId.slice(0, ruleId.lastIndexOf("/"));
+    ruleName = ruleId.slice(pluginName.length + 1);
+  } else {
+    pluginName = "@";
+    ruleName = ruleId;
+  }
+
+  return {
+    pluginName,
+    ruleName
+  };
+}
+/**
+ * Retrieves a rule instance from a given config based on the ruleId.
+ * @param {string} ruleId The rule ID to look for.
+ * @param {FlatConfig} config The config to search.
+ * @returns {import("../shared/types").Rule|undefined} The rule if found
+ *      or undefined if not.
+ */
+
+
+function getRuleFromConfig(ruleId, config) {
+  const {
+    pluginName,
+    ruleName
+  } = parseRuleId(ruleId);
+  const plugin = config.plugins && config.plugins[pluginName];
+  let rule = plugin && plugin.rules && plugin.rules[ruleName]; // normalize function rules into objects
+
+  if (rule && typeof rule === "function") {
+    rule = {
+      create: rule
+    };
+  }
+
+  return rule;
+} //-----------------------------------------------------------------------------
+// Exports
+//-----------------------------------------------------------------------------
+
+
+module.exports = {
+  parseRuleId,
+  getRuleFromConfig
+};
+
+/***/ }),
+/* 860 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+/**
+ * @fileoverview Flat Config Array
+ * @author Nicholas C. Zakas
+ */
+ //-----------------------------------------------------------------------------
+// Requirements
+//-----------------------------------------------------------------------------
+
+const {
+  ConfigArray,
+  ConfigArraySymbol
+} = __webpack_require__(861);
+
+const {
+  flatConfigSchema
+} = __webpack_require__(870);
+
+const {
+  RuleValidator
+} = __webpack_require__(871);
+
+const {
+  defaultConfig
+} = __webpack_require__(874);
+
+const recommendedConfig = __webpack_require__(875);
+
+const allConfig = __webpack_require__(876); //-----------------------------------------------------------------------------
+// Helpers
+//-----------------------------------------------------------------------------
+
+
+const ruleValidator = new RuleValidator();
+/**
+ * Splits a plugin identifier in the form a/b/c into two parts: a/b and c.
+ * @param {string} identifier The identifier to parse.
+ * @returns {{objectName: string, pluginName: string}} The parts of the plugin
+ *      name.
+ */
+
+function splitPluginIdentifier(identifier) {
+  const parts = identifier.split("/");
+  return {
+    objectName: parts.pop(),
+    pluginName: parts.join("/")
+  };
+} //-----------------------------------------------------------------------------
+// Exports
+//-----------------------------------------------------------------------------
+
+/**
+ * Represents an array containing configuration information for ESLint.
+ */
+
+
+class FlatConfigArray extends ConfigArray {
+  /**
+   * Creates a new instance.
+   * @param {*[]} configs An array of configuration information.
+   * @param {{basePath: string, baseConfig: FlatConfig}} options The options
+   *      to use for the config array instance.
+   */
+  constructor(configs) {
+    let {
+      basePath,
+      baseConfig = defaultConfig
+    } = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    super(configs, {
+      basePath,
+      schema: flatConfigSchema
+    });
+    this.unshift(...baseConfig);
+  }
+  /* eslint-disable class-methods-use-this -- Desired as instance method */
+
+  /**
+   * Replaces a config with another config to allow us to put strings
+   * in the config array that will be replaced by objects before
+   * normalization.
+   * @param {Object} config The config to preprocess.
+   * @returns {Object} The preprocessed config.
+   */
+
+
+  [ConfigArraySymbol.preprocessConfig](config) {
+    if (config === "eslint:recommended") {
+      return recommendedConfig;
+    }
+
+    if (config === "eslint:all") {
+      return allConfig;
+    }
+
+    return config;
+  }
+  /**
+   * Finalizes the config by replacing plugin references with their objects
+   * and validating rule option schemas.
+   * @param {Object} config The config to finalize.
+   * @returns {Object} The finalized config.
+   * @throws {TypeError} If the config is invalid.
+   */
+
+
+  [ConfigArraySymbol.finalizeConfig](config) {
+    const {
+      plugins,
+      languageOptions,
+      processor
+    } = config; // Check parser value
+
+    if (languageOptions && languageOptions.parser && typeof languageOptions.parser === "string") {
+      const {
+        pluginName,
+        objectName: parserName
+      } = splitPluginIdentifier(languageOptions.parser);
+
+      if (!plugins || !plugins[pluginName] || !plugins[pluginName].parsers || !plugins[pluginName].parsers[parserName]) {
+        throw new TypeError("Key \"parser\": Could not find \"".concat(parserName, "\" in plugin \"").concat(pluginName, "\"."));
+      }
+
+      languageOptions.parser = plugins[pluginName].parsers[parserName];
+    } // Check processor value
+
+
+    if (processor && typeof processor === "string") {
+      const {
+        pluginName,
+        objectName: processorName
+      } = splitPluginIdentifier(processor);
+
+      if (!plugins || !plugins[pluginName] || !plugins[pluginName].processors || !plugins[pluginName].processors[processorName]) {
+        throw new TypeError("Key \"processor\": Could not find \"".concat(processorName, "\" in plugin \"").concat(pluginName, "\"."));
+      }
+
+      config.processor = plugins[pluginName].processors[processorName];
+    }
+
+    ruleValidator.validate(config);
+    return config;
+  }
+  /* eslint-enable class-methods-use-this -- Desired as instance method */
+
+
+}
+
+exports.FlatConfigArray = FlatConfigArray;
+
+/***/ }),
+/* 861 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+
+function _interopDefault(ex) {
+  return ex && typeof ex === 'object' && 'default' in ex ? ex['default'] : ex;
+}
+
+var path = _interopDefault(__webpack_require__(429));
+
+var minimatch = _interopDefault(__webpack_require__(862));
+
+var createDebug = _interopDefault(__webpack_require__(496));
+
+var objectSchema = __webpack_require__(866);
+/**
+ * @fileoverview ConfigSchema
+ * @author Nicholas C. Zakas
+ */
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Assets that a given value is an array.
+ * @param {*} value The value to check.
+ * @returns {void}
+ * @throws {TypeError} When the value is not an array. 
+ */
+
+
+function assertIsArray(value) {
+  if (!Array.isArray(value)) {
+    throw new TypeError('Expected value to be an array.');
+  }
+}
+/**
+ * Assets that a given value is an array containing only strings and functions.
+ * @param {*} value The value to check.
+ * @returns {void}
+ * @throws {TypeError} When the value is not an array of strings and functions.
+ */
+
+
+function assertIsArrayOfStringsAndFunctions(value, name) {
+  assertIsArray(value);
+
+  if (value.some(item => typeof item !== 'string' && typeof item !== 'function')) {
+    throw new TypeError('Expected array to only contain strings.');
+  }
+} //------------------------------------------------------------------------------
+// Exports
+//------------------------------------------------------------------------------
+
+/**
+ * The base schema that every ConfigArray uses.
+ * @type Object
+ */
+
+
+const baseSchema = Object.freeze({
+  name: {
+    required: false,
+
+    merge() {
+      return undefined;
+    },
+
+    validate(value) {
+      if (typeof value !== 'string') {
+        throw new TypeError('Property must be a string.');
+      }
+    }
+
+  },
+  files: {
+    required: false,
+
+    merge() {
+      return undefined;
+    },
+
+    validate(value) {
+      // first check if it's an array
+      assertIsArray(value); // then check each member
+
+      value.forEach(item => {
+        if (Array.isArray(item)) {
+          assertIsArrayOfStringsAndFunctions(item);
+        } else if (typeof item !== 'string' && typeof item !== 'function') {
+          throw new TypeError('Items must be a string, a function, or an array of strings and functions.');
+        }
+      });
+    }
+
+  },
+  ignores: {
+    required: false,
+
+    merge() {
+      return undefined;
+    },
+
+    validate: assertIsArrayOfStringsAndFunctions
+  }
+});
+/**
+ * @fileoverview ConfigArray
+ * @author Nicholas C. Zakas
+ */
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const debug = createDebug('@hwc/config-array');
+const MINIMATCH_OPTIONS = {
+  matchBase: true
+};
+const CONFIG_TYPES = new Set(['array', 'function']);
+/**
+ * Shorthand for checking if a value is a string.
+ * @param {any} value The value to check.
+ * @returns {boolean} True if a string, false if not. 
+ */
+
+function isString(value) {
+  return typeof value === 'string';
+}
+/**
+ * Normalizes a `ConfigArray` by flattening it and executing any functions
+ * that are found inside.
+ * @param {Array} items The items in a `ConfigArray`.
+ * @param {Object} context The context object to pass into any function
+ *      found.
+ * @param {Array<string>} extraConfigTypes The config types to check.
+ * @returns {Promise<Array>} A flattened array containing only config objects.
+ * @throws {TypeError} When a config function returns a function.
+ */
+
+
+async function normalize(items, context, extraConfigTypes) {
+  const allowFunctions = extraConfigTypes.includes('function');
+  const allowArrays = extraConfigTypes.includes('array');
+
+  async function* flatTraverse(array) {
+    for (let item of array) {
+      if (typeof item === 'function') {
+        if (!allowFunctions) {
+          throw new TypeError('Unexpected function.');
+        }
+
+        item = item(context);
+
+        if (item.then) {
+          item = await item;
+        }
+      }
+
+      if (Array.isArray(item)) {
+        if (!allowArrays) {
+          throw new TypeError('Unexpected array.');
+        }
+
+        yield* flatTraverse(item);
+      } else if (typeof item === 'function') {
+        throw new TypeError('A config function can only return an object or array.');
+      } else {
+        yield item;
+      }
+    }
+  }
+  /*
+   * Async iterables cannot be used with the spread operator, so we need to manually
+   * create the array to return.
+   */
+
+
+  const asyncIterable = await flatTraverse(items);
+  const configs = [];
+
+  for await (const config of asyncIterable) {
+    configs.push(config);
+  }
+
+  return configs;
+}
+/**
+ * Normalizes a `ConfigArray` by flattening it and executing any functions
+ * that are found inside.
+ * @param {Array} items The items in a `ConfigArray`.
+ * @param {Object} context The context object to pass into any function
+ *      found.
+ * @param {Array<string>} extraConfigTypes The config types to check.
+ * @returns {Array} A flattened array containing only config objects.
+ * @throws {TypeError} When a config function returns a function.
+ */
+
+
+function normalizeSync(items, context, extraConfigTypes) {
+  const allowFunctions = extraConfigTypes.includes('function');
+  const allowArrays = extraConfigTypes.includes('array');
+
+  function* flatTraverse(array) {
+    for (let item of array) {
+      if (typeof item === 'function') {
+        if (!allowFunctions) {
+          throw new TypeError('Unexpected function.');
+        }
+
+        item = item(context);
+
+        if (item.then) {
+          throw new TypeError('Async config functions are not supported.');
+        }
+      }
+
+      if (Array.isArray(item)) {
+        if (!allowArrays) {
+          throw new TypeError('Unexpected array.');
+        }
+
+        yield* flatTraverse(item);
+      } else if (typeof item === 'function') {
+        throw new TypeError('A config function can only return an object or array.');
+      } else {
+        yield item;
+      }
+    }
+  }
+
+  return [...flatTraverse(items)];
+}
+/**
+ * Determines if a given file path should be ignored based on the given
+ * matcher.
+ * @param {string|() => boolean} matcher The pattern to match. 
+ * @param {string} filePath The absolute path of the file to check.
+ * @param {string} relativeFilePath The relative path of the file to check.
+ * @returns {boolean} True if the path should be ignored and false if not.
+ */
+
+
+function shouldIgnoreFilePath(matcher, filePath, relativeFilePath) {
+  if (typeof matcher === 'function') {
+    return matcher(filePath);
+  }
+
+  return minimatch(relativeFilePath, matcher, MINIMATCH_OPTIONS);
+}
+/**
+ * Determines if a given file path is matched by a config. If the config
+ * has no `files` field, then it matches; otherwise, if a `files` field
+ * is present then we match the globs in `files` and exclude any globs in
+ * `ignores`.
+ * @param {string} filePath The absolute file path to check.
+ * @param {Object} config The config object to check.
+ * @returns {boolean} True if the file path is matched by the config,
+ *      false if not.
+ */
+
+
+function pathMatches(filePath, basePath, config) {
+  // a config without `files` field always match
+  if (!config.files) {
+    return true;
+  }
+  /*
+   * For both files and ignores, functions are passed the absolute
+   * file path while strings are compared against the relative
+   * file path.
+   */
+
+
+  const relativeFilePath = path.relative(basePath, filePath); // if files isn't an array, throw an error
+
+  if (!Array.isArray(config.files) || config.files.length === 0) {
+    throw new TypeError('The files key must be a non-empty array.');
+  } // match both strings and functions
+
+
+  const match = pattern => {
+    if (isString(pattern)) {
+      return minimatch(relativeFilePath, pattern, MINIMATCH_OPTIONS);
+    }
+
+    if (typeof pattern === 'function') {
+      return pattern(filePath);
+    }
+
+    throw new TypeError("Unexpected matcher type ".concat(pattern, "."));
+  };
+
+  const isFilePathIgnored = matcher => {
+    return shouldIgnoreFilePath(matcher, filePath, relativeFilePath);
+  }; // check for all matches to config.files
+
+
+  let filePathMatchesPattern = config.files.some(pattern => {
+    if (Array.isArray(pattern)) {
+      return pattern.every(match);
+    }
+
+    return match(pattern);
+  });
+  /*
+   * If the file path matches the config.files patterns, then check to see
+   * if there are any files to ignore.
+   */
+
+  if (filePathMatchesPattern && config.ignores) {
+    filePathMatchesPattern = !config.ignores.some(isFilePathIgnored);
+  }
+
+  return filePathMatchesPattern;
+}
+/**
+ * Ensures that a ConfigArray has been normalized.
+ * @param {ConfigArray} configArray The ConfigArray to check. 
+ * @returns {void}
+ * @throws {Error} When the `ConfigArray` is not normalized.
+ */
+
+
+function assertNormalized(configArray) {
+  // TODO: Throw more verbose error
+  if (!configArray.isNormalized()) {
+    throw new Error('ConfigArray must be normalized to perform this operation.');
+  }
+}
+/**
+ * Ensures that config types are valid.
+ * @param {Array<string>} extraConfigTypes The config types to check.
+ * @returns {void}
+ * @throws {Error} When the config types array is invalid.
+ */
+
+
+function assertExtraConfigTypes(extraConfigTypes) {
+  if (extraConfigTypes.length > 2) {
+    throw new TypeError('configTypes must be an array with at most two items.');
+  }
+
+  for (const configType of extraConfigTypes) {
+    if (!CONFIG_TYPES.has(configType)) {
+      throw new TypeError("Unexpected config type \"".concat(configType, "\" found. Expected one of: \"object\", \"array\", \"function\"."));
+    }
+  }
+} //------------------------------------------------------------------------------
+// Public Interface
+//------------------------------------------------------------------------------
+
+
+const ConfigArraySymbol = {
+  isNormalized: Symbol('isNormalized'),
+  configCache: Symbol('configCache'),
+  schema: Symbol('schema'),
+  finalizeConfig: Symbol('finalizeConfig'),
+  preprocessConfig: Symbol('preprocessConfig')
+}; // used to store calculate data for faster lookup
+
+const dataCache = new WeakMap();
+/**
+ * Represents an array of config objects and provides method for working with
+ * those config objects.
+ */
+
+class ConfigArray extends Array {
+  /**
+   * Creates a new instance of ConfigArray.
+   * @param {Iterable|Function|Object} configs An iterable yielding config
+   *      objects, or a config function, or a config object.
+   * @param {string} [options.basePath=""] The path of the config file
+   * @param {boolean} [options.normalized=false] Flag indicating if the
+   *      configs have already been normalized.
+   * @param {Object} [options.schema] The additional schema 
+   *      definitions to use for the ConfigArray schema.
+   * @param {Array<string>} [options.configTypes] List of config types supported.
+   */
+  constructor(configs) {
+    let {
+      basePath = '',
+      normalized = false,
+      schema: customSchema,
+      extraConfigTypes = []
+    } = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    super();
+    /**
+     * Tracks if the array has been normalized.
+     * @property isNormalized
+     * @type boolean
+     * @private
+     */
+
+    this[ConfigArraySymbol.isNormalized] = normalized;
+    /**
+     * The schema used for validating and merging configs.
+     * @property schema
+     * @type ObjectSchema
+     * @private
+     */
+
+    this[ConfigArraySymbol.schema] = new objectSchema.ObjectSchema({ ...customSchema,
+      ...baseSchema
+    });
+    /**
+     * The path of the config file that this array was loaded from.
+     * This is used to calculate filename matches.
+     * @property basePath
+     * @type string
+     */
+
+    this.basePath = basePath;
+    assertExtraConfigTypes(extraConfigTypes);
+    /**
+     * The supported config types.
+     * @property configTypes
+     * @type Array<string>
+     */
+
+    this.extraConfigTypes = Object.freeze([...extraConfigTypes]);
+    /**
+     * A cache to store calculated configs for faster repeat lookup.
+     * @property configCache
+     * @type Map
+     * @private
+     */
+
+    this[ConfigArraySymbol.configCache] = new Map(); // init cache
+
+    dataCache.set(this, {}); // load the configs into this array
+
+    if (Array.isArray(configs)) {
+      this.push(...configs);
+    } else {
+      this.push(configs);
+    }
+  }
+  /**
+   * Prevent normal array methods from creating a new `ConfigArray` instance.
+   * This is to ensure that methods such as `slice()` won't try to create a 
+   * new instance of `ConfigArray` behind the scenes as doing so may throw
+   * an error due to the different constructor signature.
+   * @returns {Function} The `Array` constructor.
+   */
+
+
+  static get [Symbol.species]() {
+    return Array;
+  }
+  /**
+   * Returns the `files` globs from every config object in the array.
+   * This can be used to determine which files will be matched by a
+   * config array or to use as a glob pattern when no patterns are provided
+   * for a command line interface.
+   * @returns {Array<string|Function>} An array of matchers.
+   */
+
+
+  get files() {
+    assertNormalized(this); // if this data has been cached, retrieve it
+
+    const cache = dataCache.get(this);
+
+    if (cache.files) {
+      return cache.files;
+    } // otherwise calculate it
+
+
+    const result = [];
+
+    for (const config of this) {
+      if (config.files) {
+        config.files.forEach(filePattern => {
+          result.push(filePattern);
+        });
+      }
+    } // store result
+
+
+    cache.files = result;
+    dataCache.set(this, cache);
+    return result;
+  }
+  /**
+   * Returns ignore matchers that should always be ignored regardless of
+   * the matching `files` fields in any configs. This is necessary to mimic
+   * the behavior of things like .gitignore and .eslintignore, allowing a
+   * globbing operation to be faster.
+   * @returns {string[]} An array of string patterns and functions to be ignored.
+   */
+
+
+  get ignores() {
+    assertNormalized(this); // if this data has been cached, retrieve it
+
+    const cache = dataCache.get(this);
+
+    if (cache.ignores) {
+      return cache.ignores;
+    } // otherwise calculate it
+
+
+    const result = [];
+
+    for (const config of this) {
+      if (config.ignores && !config.files) {
+        result.push(...config.ignores);
+      }
+    } // store result
+
+
+    cache.ignores = result;
+    dataCache.set(this, cache);
+    return result;
+  }
+  /**
+   * Indicates if the config array has been normalized.
+   * @returns {boolean} True if the config array is normalized, false if not.
+   */
+
+
+  isNormalized() {
+    return this[ConfigArraySymbol.isNormalized];
+  }
+  /**
+   * Normalizes a config array by flattening embedded arrays and executing
+   * config functions.
+   * @param {ConfigContext} context The context object for config functions.
+   * @returns {Promise<ConfigArray>} The current ConfigArray instance.
+   */
+
+
+  async normalize() {
+    let context = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+    if (!this.isNormalized()) {
+      const normalizedConfigs = await normalize(this, context, this.extraConfigTypes);
+      this.length = 0;
+      this.push(...normalizedConfigs.map(this[ConfigArraySymbol.preprocessConfig]));
+      this[ConfigArraySymbol.isNormalized] = true; // prevent further changes
+
+      Object.freeze(this);
+    }
+
+    return this;
+  }
+  /**
+   * Normalizes a config array by flattening embedded arrays and executing
+   * config functions.
+   * @param {ConfigContext} context The context object for config functions.
+   * @returns {ConfigArray} The current ConfigArray instance.
+   */
+
+
+  normalizeSync() {
+    let context = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+    if (!this.isNormalized()) {
+      const normalizedConfigs = normalizeSync(this, context, this.extraConfigTypes);
+      this.length = 0;
+      this.push(...normalizedConfigs.map(this[ConfigArraySymbol.preprocessConfig]));
+      this[ConfigArraySymbol.isNormalized] = true; // prevent further changes
+
+      Object.freeze(this);
+    }
+
+    return this;
+  }
+  /**
+   * Finalizes the state of a config before being cached and returned by
+   * `getConfig()`. Does nothing by default but is provided to be
+   * overridden by subclasses as necessary.
+   * @param {Object} config The config to finalize.
+   * @returns {Object} The finalized config.
+   */
+
+
+  [ConfigArraySymbol.finalizeConfig](config) {
+    return config;
+  }
+  /**
+   * Preprocesses a config during the normalization process. This is the
+   * method to override if you want to convert an array item before it is
+   * validated for the first time. For example, if you want to replace a
+   * string with an object, this is the method to override.
+   * @param {Object} config The config to preprocess.
+   * @returns {Object} The config to use in place of the argument.
+   */
+
+
+  [ConfigArraySymbol.preprocessConfig](config) {
+    return config;
+  }
+  /**
+   * Returns the config object for a given file path.
+   * @param {string} filePath The complete path of a file to get a config for.
+   * @returns {Object} The config object for this file.
+   */
+
+
+  getConfig(filePath) {
+    assertNormalized(this); // first check the cache to avoid duplicate work
+
+    let finalConfig = this[ConfigArraySymbol.configCache].get(filePath);
+
+    if (finalConfig) {
+      return finalConfig;
+    } // TODO: Maybe move elsewhere?
+
+
+    const relativeFilePath = path.relative(this.basePath, filePath); // if there is a global matcher ignoring this file, just return null
+
+    for (const shouldIgnore of this.ignores) {
+      if (shouldIgnoreFilePath(shouldIgnore, filePath, relativeFilePath)) {
+        // cache and return result - finalConfig is undefined at this point
+        this[ConfigArraySymbol.configCache].set(filePath, finalConfig);
+        return finalConfig;
+      }
+    } // filePath isn't automatically ignored, so try to construct config
+
+
+    const matchingConfigs = [];
+
+    for (const config of this) {
+      if (pathMatches(filePath, this.basePath, config)) {
+        debug("Matching config found for ".concat(filePath));
+        matchingConfigs.push(config);
+      } else {
+        debug("No matching config found for ".concat(filePath));
+      }
+    } // if matching both files and ignores, there will be no config to create
+
+
+    if (matchingConfigs.length === 0) {
+      // cache and return result - finalConfig is undefined at this point
+      this[ConfigArraySymbol.configCache].set(filePath, finalConfig);
+      return finalConfig;
+    } // otherwise construct the config
+
+
+    finalConfig = matchingConfigs.reduce((result, config) => {
+      return this[ConfigArraySymbol.schema].merge(result, config);
+    }, {}, this);
+    finalConfig = this[ConfigArraySymbol.finalizeConfig](finalConfig);
+    this[ConfigArraySymbol.configCache].set(filePath, finalConfig);
+    return finalConfig;
+  }
+  /**
+   * Determines if the given filepath is ignored based on the configs.
+   * @param {string} filePath The complete path of a file to check.
+   * @returns {boolean} True if the path is ignored, false if not.
+   */
+
+
+  isIgnored(filePath) {
+    return this.getConfig(filePath) === undefined;
+  }
+
+}
+
+exports.ConfigArray = ConfigArray;
+exports.ConfigArraySymbol = ConfigArraySymbol;
+
+/***/ }),
+/* 862 */
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/* provided dependency */ var console = __webpack_require__(438);
+module.exports = minimatch;
+minimatch.Minimatch = Minimatch;
+var path = {
+  sep: '/'
+};
+
+try {
+  path = __webpack_require__(429);
+} catch (er) {}
+
+var GLOBSTAR = minimatch.GLOBSTAR = Minimatch.GLOBSTAR = {};
+
+var expand = __webpack_require__(863);
+
+var plTypes = {
+  '!': {
+    open: '(?:(?!(?:',
+    close: '))[^/]*?)'
+  },
+  '?': {
+    open: '(?:',
+    close: ')?'
+  },
+  '+': {
+    open: '(?:',
+    close: ')+'
+  },
+  '*': {
+    open: '(?:',
+    close: ')*'
+  },
+  '@': {
+    open: '(?:',
+    close: ')'
+  }
+}; // any single thing other than /
+// don't need to escape / when using new RegExp()
+
+var qmark = '[^/]'; // * => any number of characters
+
+var star = qmark + '*?'; // ** when dots are allowed.  Anything goes, except .. and .
+// not (^ or / followed by one or two dots followed by $ or /),
+// followed by anything, any number of times.
+
+var twoStarDot = '(?:(?!(?:\\\/|^)(?:\\.{1,2})($|\\\/)).)*?'; // not a ^ or / followed by a dot,
+// followed by anything, any number of times.
+
+var twoStarNoDot = '(?:(?!(?:\\\/|^)\\.).)*?'; // characters that need to be escaped in RegExp.
+
+var reSpecials = charSet('().*{}+?[]^$\\!'); // "abc" -> { a:true, b:true, c:true }
+
+function charSet(s) {
+  return s.split('').reduce(function (set, c) {
+    set[c] = true;
+    return set;
+  }, {});
+} // normalizes slashes.
+
+
+var slashSplit = /\/+/;
+minimatch.filter = filter;
+
+function filter(pattern, options) {
+  options = options || {};
+  return function (p, i, list) {
+    return minimatch(p, pattern, options);
+  };
+}
+
+function ext(a, b) {
+  a = a || {};
+  b = b || {};
+  var t = {};
+  Object.keys(b).forEach(function (k) {
+    t[k] = b[k];
+  });
+  Object.keys(a).forEach(function (k) {
+    t[k] = a[k];
+  });
+  return t;
+}
+
+minimatch.defaults = function (def) {
+  if (!def || !Object.keys(def).length) return minimatch;
+  var orig = minimatch;
+
+  var m = function minimatch(p, pattern, options) {
+    return orig.minimatch(p, pattern, ext(def, options));
+  };
+
+  m.Minimatch = function Minimatch(pattern, options) {
+    return new orig.Minimatch(pattern, ext(def, options));
+  };
+
+  return m;
+};
+
+Minimatch.defaults = function (def) {
+  if (!def || !Object.keys(def).length) return Minimatch;
+  return minimatch.defaults(def).Minimatch;
+};
+
+function minimatch(p, pattern, options) {
+  if (typeof pattern !== 'string') {
+    throw new TypeError('glob pattern string required');
+  }
+
+  if (!options) options = {}; // shortcut: comments match nothing.
+
+  if (!options.nocomment && pattern.charAt(0) === '#') {
+    return false;
+  } // "" only matches ""
+
+
+  if (pattern.trim() === '') return p === '';
+  return new Minimatch(pattern, options).match(p);
+}
+
+function Minimatch(pattern, options) {
+  if (!(this instanceof Minimatch)) {
+    return new Minimatch(pattern, options);
+  }
+
+  if (typeof pattern !== 'string') {
+    throw new TypeError('glob pattern string required');
+  }
+
+  if (!options) options = {};
+  pattern = pattern.trim(); // windows support: need to use /, not \
+
+  if (path.sep !== '/') {
+    pattern = pattern.split(path.sep).join('/');
+  }
+
+  this.options = options;
+  this.set = [];
+  this.pattern = pattern;
+  this.regexp = null;
+  this.negate = false;
+  this.comment = false;
+  this.empty = false; // make the set of regexps etc.
+
+  this.make();
+}
+
+Minimatch.prototype.debug = function () {};
+
+Minimatch.prototype.make = make;
+
+function make() {
+  // don't do it more than once.
+  if (this._made) return;
+  var pattern = this.pattern;
+  var options = this.options; // empty patterns and comments match nothing.
+
+  if (!options.nocomment && pattern.charAt(0) === '#') {
+    this.comment = true;
+    return;
+  }
+
+  if (!pattern) {
+    this.empty = true;
+    return;
+  } // step 1: figure out negation, etc.
+
+
+  this.parseNegate(); // step 2: expand braces
+
+  var set = this.globSet = this.braceExpand();
+  if (options.debug) this.debug = console.error;
+  this.debug(this.pattern, set); // step 3: now we have a set, so turn each one into a series of path-portion
+  // matching patterns.
+  // These will be regexps, except in the case of "**", which is
+  // set to the GLOBSTAR object for globstar behavior,
+  // and will not contain any / characters
+
+  set = this.globParts = set.map(function (s) {
+    return s.split(slashSplit);
+  });
+  this.debug(this.pattern, set); // glob --> regexps
+
+  set = set.map(function (s, si, set) {
+    return s.map(this.parse, this);
+  }, this);
+  this.debug(this.pattern, set); // filter out everything that didn't compile properly.
+
+  set = set.filter(function (s) {
+    return s.indexOf(false) === -1;
+  });
+  this.debug(this.pattern, set);
+  this.set = set;
+}
+
+Minimatch.prototype.parseNegate = parseNegate;
+
+function parseNegate() {
+  var pattern = this.pattern;
+  var negate = false;
+  var options = this.options;
+  var negateOffset = 0;
+  if (options.nonegate) return;
+
+  for (var i = 0, l = pattern.length; i < l && pattern.charAt(i) === '!'; i++) {
+    negate = !negate;
+    negateOffset++;
+  }
+
+  if (negateOffset) this.pattern = pattern.substr(negateOffset);
+  this.negate = negate;
+} // Brace expansion:
+// a{b,c}d -> abd acd
+// a{b,}c -> abc ac
+// a{0..3}d -> a0d a1d a2d a3d
+// a{b,c{d,e}f}g -> abg acdfg acefg
+// a{b,c}d{e,f}g -> abdeg acdeg abdeg abdfg
+//
+// Invalid sets are not expanded.
+// a{2..}b -> a{2..}b
+// a{b}c -> a{b}c
+
+
+minimatch.braceExpand = function (pattern, options) {
+  return braceExpand(pattern, options);
+};
+
+Minimatch.prototype.braceExpand = braceExpand;
+
+function braceExpand(pattern, options) {
+  if (!options) {
+    if (this instanceof Minimatch) {
+      options = this.options;
+    } else {
+      options = {};
+    }
+  }
+
+  pattern = typeof pattern === 'undefined' ? this.pattern : pattern;
+
+  if (typeof pattern === 'undefined') {
+    throw new TypeError('undefined pattern');
+  }
+
+  if (options.nobrace || !pattern.match(/\{.*\}/)) {
+    // shortcut. no need to expand.
+    return [pattern];
+  }
+
+  return expand(pattern);
+} // parse a component of the expanded set.
+// At this point, no pattern may contain "/" in it
+// so we're going to return a 2d array, where each entry is the full
+// pattern, split on '/', and then turned into a regular expression.
+// A regexp is made at the end which joins each array with an
+// escaped /, and another full one which joins each regexp with |.
+//
+// Following the lead of Bash 4.1, note that "**" only has special meaning
+// when it is the *only* thing in a path portion.  Otherwise, any series
+// of * is equivalent to a single *.  Globstar behavior is enabled by
+// default, and can be disabled by setting options.noglobstar.
+
+
+Minimatch.prototype.parse = parse;
+var SUBPARSE = {};
+
+function parse(pattern, isSub) {
+  if (pattern.length > 1024 * 64) {
+    throw new TypeError('pattern is too long');
+  }
+
+  var options = this.options; // shortcuts
+
+  if (!options.noglobstar && pattern === '**') return GLOBSTAR;
+  if (pattern === '') return '';
+  var re = '';
+  var hasMagic = !!options.nocase;
+  var escaping = false; // ? => one single character
+
+  var patternListStack = [];
+  var negativeLists = [];
+  var stateChar;
+  var inClass = false;
+  var reClassStart = -1;
+  var classStart = -1; // . and .. never match anything that doesn't start with .,
+  // even when options.dot is set.
+
+  var patternStart = pattern.charAt(0) === '.' ? '' // anything
+  // not (start or / followed by . or .. followed by / or end)
+  : options.dot ? '(?!(?:^|\\\/)\\.{1,2}(?:$|\\\/))' : '(?!\\.)';
+  var self = this;
+
+  function clearStateChar() {
+    if (stateChar) {
+      // we had some state-tracking character
+      // that wasn't consumed by this pass.
+      switch (stateChar) {
+        case '*':
+          re += star;
+          hasMagic = true;
+          break;
+
+        case '?':
+          re += qmark;
+          hasMagic = true;
+          break;
+
+        default:
+          re += '\\' + stateChar;
+          break;
+      }
+
+      self.debug('clearStateChar %j %j', stateChar, re);
+      stateChar = false;
+    }
+  }
+
+  for (var i = 0, len = pattern.length, c; i < len && (c = pattern.charAt(i)); i++) {
+    this.debug('%s\t%s %s %j', pattern, i, re, c); // skip over any that are escaped.
+
+    if (escaping && reSpecials[c]) {
+      re += '\\' + c;
+      escaping = false;
+      continue;
+    }
+
+    switch (c) {
+      case '/':
+        // completely not allowed, even escaped.
+        // Should already be path-split by now.
+        return false;
+
+      case '\\':
+        clearStateChar();
+        escaping = true;
+        continue;
+      // the various stateChar values
+      // for the "extglob" stuff.
+
+      case '?':
+      case '*':
+      case '+':
+      case '@':
+      case '!':
+        this.debug('%s\t%s %s %j <-- stateChar', pattern, i, re, c); // all of those are literals inside a class, except that
+        // the glob [!a] means [^a] in regexp
+
+        if (inClass) {
+          this.debug('  in class');
+          if (c === '!' && i === classStart + 1) c = '^';
+          re += c;
+          continue;
+        } // if we already have a stateChar, then it means
+        // that there was something like ** or +? in there.
+        // Handle the stateChar, then proceed with this one.
+
+
+        self.debug('call clearStateChar %j', stateChar);
+        clearStateChar();
+        stateChar = c; // if extglob is disabled, then +(asdf|foo) isn't a thing.
+        // just clear the statechar *now*, rather than even diving into
+        // the patternList stuff.
+
+        if (options.noext) clearStateChar();
+        continue;
+
+      case '(':
+        if (inClass) {
+          re += '(';
+          continue;
+        }
+
+        if (!stateChar) {
+          re += '\\(';
+          continue;
+        }
+
+        patternListStack.push({
+          type: stateChar,
+          start: i - 1,
+          reStart: re.length,
+          open: plTypes[stateChar].open,
+          close: plTypes[stateChar].close
+        }); // negation is (?:(?!js)[^/]*)
+
+        re += stateChar === '!' ? '(?:(?!(?:' : '(?:';
+        this.debug('plType %j %j', stateChar, re);
+        stateChar = false;
+        continue;
+
+      case ')':
+        if (inClass || !patternListStack.length) {
+          re += '\\)';
+          continue;
+        }
+
+        clearStateChar();
+        hasMagic = true;
+        var pl = patternListStack.pop(); // negation is (?:(?!js)[^/]*)
+        // The others are (?:<pattern>)<type>
+
+        re += pl.close;
+
+        if (pl.type === '!') {
+          negativeLists.push(pl);
+        }
+
+        pl.reEnd = re.length;
+        continue;
+
+      case '|':
+        if (inClass || !patternListStack.length || escaping) {
+          re += '\\|';
+          escaping = false;
+          continue;
+        }
+
+        clearStateChar();
+        re += '|';
+        continue;
+      // these are mostly the same in regexp and glob
+
+      case '[':
+        // swallow any state-tracking char before the [
+        clearStateChar();
+
+        if (inClass) {
+          re += '\\' + c;
+          continue;
+        }
+
+        inClass = true;
+        classStart = i;
+        reClassStart = re.length;
+        re += c;
+        continue;
+
+      case ']':
+        //  a right bracket shall lose its special
+        //  meaning and represent itself in
+        //  a bracket expression if it occurs
+        //  first in the list.  -- POSIX.2 2.8.3.2
+        if (i === classStart + 1 || !inClass) {
+          re += '\\' + c;
+          escaping = false;
+          continue;
+        } // handle the case where we left a class open.
+        // "[z-a]" is valid, equivalent to "\[z-a\]"
+
+
+        if (inClass) {
+          // split where the last [ was, make sure we don't have
+          // an invalid re. if so, re-walk the contents of the
+          // would-be class to re-translate any characters that
+          // were passed through as-is
+          // TODO: It would probably be faster to determine this
+          // without a try/catch and a new RegExp, but it's tricky
+          // to do safely.  For now, this is safe and works.
+          var cs = pattern.substring(classStart + 1, i);
+
+          try {
+            RegExp('[' + cs + ']');
+          } catch (er) {
+            // not a valid class!
+            var sp = this.parse(cs, SUBPARSE);
+            re = re.substr(0, reClassStart) + '\\[' + sp[0] + '\\]';
+            hasMagic = hasMagic || sp[1];
+            inClass = false;
+            continue;
+          }
+        } // finish up the class.
+
+
+        hasMagic = true;
+        inClass = false;
+        re += c;
+        continue;
+
+      default:
+        // swallow any state char that wasn't consumed
+        clearStateChar();
+
+        if (escaping) {
+          // no need
+          escaping = false;
+        } else if (reSpecials[c] && !(c === '^' && inClass)) {
+          re += '\\';
+        }
+
+        re += c;
+    } // switch
+
+  } // for
+  // handle the case where we left a class open.
+  // "[abc" is valid, equivalent to "\[abc"
+
+
+  if (inClass) {
+    // split where the last [ was, and escape it
+    // this is a huge pita.  We now have to re-walk
+    // the contents of the would-be class to re-translate
+    // any characters that were passed through as-is
+    cs = pattern.substr(classStart + 1);
+    sp = this.parse(cs, SUBPARSE);
+    re = re.substr(0, reClassStart) + '\\[' + sp[0];
+    hasMagic = hasMagic || sp[1];
+  } // handle the case where we had a +( thing at the *end*
+  // of the pattern.
+  // each pattern list stack adds 3 chars, and we need to go through
+  // and escape any | chars that were passed through as-is for the regexp.
+  // Go through and escape them, taking care not to double-escape any
+  // | chars that were already escaped.
+
+
+  for (pl = patternListStack.pop(); pl; pl = patternListStack.pop()) {
+    var tail = re.slice(pl.reStart + pl.open.length);
+    this.debug('setting tail', re, pl); // maybe some even number of \, then maybe 1 \, followed by a |
+
+    tail = tail.replace(/((?:\\{2}){0,64})(\\?)\|/g, function (_, $1, $2) {
+      if (!$2) {
+        // the | isn't already escaped, so escape it.
+        $2 = '\\';
+      } // need to escape all those slashes *again*, without escaping the
+      // one that we need for escaping the | character.  As it works out,
+      // escaping an even number of slashes can be done by simply repeating
+      // it exactly after itself.  That's why this trick works.
+      //
+      // I am sorry that you have to see this.
+
+
+      return $1 + $1 + $2 + '|';
+    });
+    this.debug('tail=%j\n   %s', tail, tail, pl, re);
+    var t = pl.type === '*' ? star : pl.type === '?' ? qmark : '\\' + pl.type;
+    hasMagic = true;
+    re = re.slice(0, pl.reStart) + t + '\\(' + tail;
+  } // handle trailing things that only matter at the very end.
+
+
+  clearStateChar();
+
+  if (escaping) {
+    // trailing \\
+    re += '\\\\';
+  } // only need to apply the nodot start if the re starts with
+  // something that could conceivably capture a dot
+
+
+  var addPatternStart = false;
+
+  switch (re.charAt(0)) {
+    case '.':
+    case '[':
+    case '(':
+      addPatternStart = true;
+  } // Hack to work around lack of negative lookbehind in JS
+  // A pattern like: *.!(x).!(y|z) needs to ensure that a name
+  // like 'a.xyz.yz' doesn't match.  So, the first negative
+  // lookahead, has to look ALL the way ahead, to the end of
+  // the pattern.
+
+
+  for (var n = negativeLists.length - 1; n > -1; n--) {
+    var nl = negativeLists[n];
+    var nlBefore = re.slice(0, nl.reStart);
+    var nlFirst = re.slice(nl.reStart, nl.reEnd - 8);
+    var nlLast = re.slice(nl.reEnd - 8, nl.reEnd);
+    var nlAfter = re.slice(nl.reEnd);
+    nlLast += nlAfter; // Handle nested stuff like *(*.js|!(*.json)), where open parens
+    // mean that we should *not* include the ) in the bit that is considered
+    // "after" the negated section.
+
+    var openParensBefore = nlBefore.split('(').length - 1;
+    var cleanAfter = nlAfter;
+
+    for (i = 0; i < openParensBefore; i++) {
+      cleanAfter = cleanAfter.replace(/\)[+*?]?/, '');
+    }
+
+    nlAfter = cleanAfter;
+    var dollar = '';
+
+    if (nlAfter === '' && isSub !== SUBPARSE) {
+      dollar = '$';
+    }
+
+    var newRe = nlBefore + nlFirst + nlAfter + dollar + nlLast;
+    re = newRe;
+  } // if the re is not "" at this point, then we need to make sure
+  // it doesn't match against an empty path part.
+  // Otherwise a/* will match a/, which it should not.
+
+
+  if (re !== '' && hasMagic) {
+    re = '(?=.)' + re;
+  }
+
+  if (addPatternStart) {
+    re = patternStart + re;
+  } // parsing just a piece of a larger pattern.
+
+
+  if (isSub === SUBPARSE) {
+    return [re, hasMagic];
+  } // skip the regexp for non-magical patterns
+  // unescape anything in it, though, so that it'll be
+  // an exact match against a file etc.
+
+
+  if (!hasMagic) {
+    return globUnescape(pattern);
+  }
+
+  var flags = options.nocase ? 'i' : '';
+
+  try {
+    var regExp = new RegExp('^' + re + '$', flags);
+  } catch (er) {
+    // If it was an invalid regular expression, then it can't match
+    // anything.  This trick looks for a character after the end of
+    // the string, which is of course impossible, except in multi-line
+    // mode, but it's not a /m regex.
+    return new RegExp('$.');
+  }
+
+  regExp._glob = pattern;
+  regExp._src = re;
+  return regExp;
+}
+
+minimatch.makeRe = function (pattern, options) {
+  return new Minimatch(pattern, options || {}).makeRe();
+};
+
+Minimatch.prototype.makeRe = makeRe;
+
+function makeRe() {
+  if (this.regexp || this.regexp === false) return this.regexp; // at this point, this.set is a 2d array of partial
+  // pattern strings, or "**".
+  //
+  // It's better to use .match().  This function shouldn't
+  // be used, really, but it's pretty convenient sometimes,
+  // when you just want to work with a regex.
+
+  var set = this.set;
+
+  if (!set.length) {
+    this.regexp = false;
+    return this.regexp;
+  }
+
+  var options = this.options;
+  var twoStar = options.noglobstar ? star : options.dot ? twoStarDot : twoStarNoDot;
+  var flags = options.nocase ? 'i' : '';
+  var re = set.map(function (pattern) {
+    return pattern.map(function (p) {
+      return p === GLOBSTAR ? twoStar : typeof p === 'string' ? regExpEscape(p) : p._src;
+    }).join('\\\/');
+  }).join('|'); // must match entire pattern
+  // ending in a * or ** will make it less strict.
+
+  re = '^(?:' + re + ')$'; // can match anything, as long as it's not this.
+
+  if (this.negate) re = '^(?!' + re + ').*$';
+
+  try {
+    this.regexp = new RegExp(re, flags);
+  } catch (ex) {
+    this.regexp = false;
+  }
+
+  return this.regexp;
+}
+
+minimatch.match = function (list, pattern, options) {
+  options = options || {};
+  var mm = new Minimatch(pattern, options);
+  list = list.filter(function (f) {
+    return mm.match(f);
+  });
+
+  if (mm.options.nonull && !list.length) {
+    list.push(pattern);
+  }
+
+  return list;
+};
+
+Minimatch.prototype.match = match;
+
+function match(f, partial) {
+  this.debug('match', f, this.pattern); // short-circuit in the case of busted things.
+  // comments, etc.
+
+  if (this.comment) return false;
+  if (this.empty) return f === '';
+  if (f === '/' && partial) return true;
+  var options = this.options; // windows: need to use /, not \
+
+  if (path.sep !== '/') {
+    f = f.split(path.sep).join('/');
+  } // treat the test path as a set of pathparts.
+
+
+  f = f.split(slashSplit);
+  this.debug(this.pattern, 'split', f); // just ONE of the pattern sets in this.set needs to match
+  // in order for it to be valid.  If negating, then just one
+  // match means that we have failed.
+  // Either way, return on the first hit.
+
+  var set = this.set;
+  this.debug(this.pattern, 'set', set); // Find the basename of the path by looking for the last non-empty segment
+
+  var filename;
+  var i;
+
+  for (i = f.length - 1; i >= 0; i--) {
+    filename = f[i];
+    if (filename) break;
+  }
+
+  for (i = 0; i < set.length; i++) {
+    var pattern = set[i];
+    var file = f;
+
+    if (options.matchBase && pattern.length === 1) {
+      file = [filename];
+    }
+
+    var hit = this.matchOne(file, pattern, partial);
+
+    if (hit) {
+      if (options.flipNegate) return true;
+      return !this.negate;
+    }
+  } // didn't get any hits.  this is success if it's a negative
+  // pattern, failure otherwise.
+
+
+  if (options.flipNegate) return false;
+  return this.negate;
+} // set partial to true to test if, for example,
+// "/a/b" matches the start of "/*/b/*/d"
+// Partial means, if you run out of file before you run
+// out of pattern, then that's fine, as long as all
+// the parts match.
+
+
+Minimatch.prototype.matchOne = function (file, pattern, partial) {
+  var options = this.options;
+  this.debug('matchOne', {
+    'this': this,
+    file: file,
+    pattern: pattern
+  });
+  this.debug('matchOne', file.length, pattern.length);
+
+  for (var fi = 0, pi = 0, fl = file.length, pl = pattern.length; fi < fl && pi < pl; fi++, pi++) {
+    this.debug('matchOne loop');
+    var p = pattern[pi];
+    var f = file[fi];
+    this.debug(pattern, p, f); // should be impossible.
+    // some invalid regexp stuff in the set.
+
+    if (p === false) return false;
+
+    if (p === GLOBSTAR) {
+      this.debug('GLOBSTAR', [pattern, p, f]); // "**"
+      // a/**/b/**/c would match the following:
+      // a/b/x/y/z/c
+      // a/x/y/z/b/c
+      // a/b/x/b/x/c
+      // a/b/c
+      // To do this, take the rest of the pattern after
+      // the **, and see if it would match the file remainder.
+      // If so, return success.
+      // If not, the ** "swallows" a segment, and try again.
+      // This is recursively awful.
+      //
+      // a/**/b/**/c matching a/b/x/y/z/c
+      // - a matches a
+      // - doublestar
+      //   - matchOne(b/x/y/z/c, b/**/c)
+      //     - b matches b
+      //     - doublestar
+      //       - matchOne(x/y/z/c, c) -> no
+      //       - matchOne(y/z/c, c) -> no
+      //       - matchOne(z/c, c) -> no
+      //       - matchOne(c, c) yes, hit
+
+      var fr = fi;
+      var pr = pi + 1;
+
+      if (pr === pl) {
+        this.debug('** at the end'); // a ** at the end will just swallow the rest.
+        // We have found a match.
+        // however, it will not swallow /.x, unless
+        // options.dot is set.
+        // . and .. are *never* matched by **, for explosively
+        // exponential reasons.
+
+        for (; fi < fl; fi++) {
+          if (file[fi] === '.' || file[fi] === '..' || !options.dot && file[fi].charAt(0) === '.') return false;
+        }
+
+        return true;
+      } // ok, let's see if we can swallow whatever we can.
+
+
+      while (fr < fl) {
+        var swallowee = file[fr];
+        this.debug('\nglobstar while', file, fr, pattern, pr, swallowee); // XXX remove this slice.  Just pass the start index.
+
+        if (this.matchOne(file.slice(fr), pattern.slice(pr), partial)) {
+          this.debug('globstar found match!', fr, fl, swallowee); // found a match.
+
+          return true;
+        } else {
+          // can't swallow "." or ".." ever.
+          // can only swallow ".foo" when explicitly asked.
+          if (swallowee === '.' || swallowee === '..' || !options.dot && swallowee.charAt(0) === '.') {
+            this.debug('dot detected!', file, fr, pattern, pr);
+            break;
+          } // ** swallows a segment, and continue.
+
+
+          this.debug('globstar swallow a segment, and continue');
+          fr++;
+        }
+      } // no match was found.
+      // However, in partial mode, we can't say this is necessarily over.
+      // If there's more *pattern* left, then
+
+
+      if (partial) {
+        // ran out of file
+        this.debug('\n>>> no match, partial?', file, fr, pattern, pr);
+        if (fr === fl) return true;
+      }
+
+      return false;
+    } // something other than **
+    // non-magic patterns just have to match exactly
+    // patterns with magic have been turned into regexps.
+
+
+    var hit;
+
+    if (typeof p === 'string') {
+      if (options.nocase) {
+        hit = f.toLowerCase() === p.toLowerCase();
+      } else {
+        hit = f === p;
+      }
+
+      this.debug('string match', p, f, hit);
+    } else {
+      hit = f.match(p);
+      this.debug('pattern match', p, f, hit);
+    }
+
+    if (!hit) return false;
+  } // Note: ending in / means that we'll get a final ""
+  // at the end of the pattern.  This can only match a
+  // corresponding "" at the end of the file.
+  // If the file ends in /, then it can only match a
+  // a pattern that ends in /, unless the pattern just
+  // doesn't have any more for it. But, a/b/ should *not*
+  // match "a/b/*", even though "" matches against the
+  // [^/]*? pattern, except in partial mode, where it might
+  // simply not be reached yet.
+  // However, a/b/ should still satisfy a/*
+  // now either we fell off the end of the pattern, or we're done.
+
+
+  if (fi === fl && pi === pl) {
+    // ran out of pattern and filename at the same time.
+    // an exact hit!
+    return true;
+  } else if (fi === fl) {
+    // ran out of file, but still had pattern left.
+    // this is ok if we're doing the match as part of
+    // a glob fs traversal.
+    return partial;
+  } else if (pi === pl) {
+    // ran out of pattern, still have file left.
+    // this is only acceptable if we're on the very last
+    // empty segment of a file with a trailing slash.
+    // a/* should match a/b/
+    var emptyFileEnd = fi === fl - 1 && file[fi] === '';
+    return emptyFileEnd;
+  } // should be unreachable.
+
+
+  throw new Error('wtf?');
+}; // replace stuff like \* with *
+
+
+function globUnescape(s) {
+  return s.replace(/\\(.)/g, '$1');
+}
+
+function regExpEscape(s) {
+  return s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+}
+
+/***/ }),
+/* 863 */
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+var concatMap = __webpack_require__(864);
+
+var balanced = __webpack_require__(865);
+
+module.exports = expandTop;
+var escSlash = '\0SLASH' + Math.random() + '\0';
+var escOpen = '\0OPEN' + Math.random() + '\0';
+var escClose = '\0CLOSE' + Math.random() + '\0';
+var escComma = '\0COMMA' + Math.random() + '\0';
+var escPeriod = '\0PERIOD' + Math.random() + '\0';
+
+function numeric(str) {
+  return parseInt(str, 10) == str ? parseInt(str, 10) : str.charCodeAt(0);
+}
+
+function escapeBraces(str) {
+  return str.split('\\\\').join(escSlash).split('\\{').join(escOpen).split('\\}').join(escClose).split('\\,').join(escComma).split('\\.').join(escPeriod);
+}
+
+function unescapeBraces(str) {
+  return str.split(escSlash).join('\\').split(escOpen).join('{').split(escClose).join('}').split(escComma).join(',').split(escPeriod).join('.');
+} // Basically just str.split(","), but handling cases
+// where we have nested braced sections, which should be
+// treated as individual members, like {a,{b,c},d}
+
+
+function parseCommaParts(str) {
+  if (!str) return [''];
+  var parts = [];
+  var m = balanced('{', '}', str);
+  if (!m) return str.split(',');
+  var pre = m.pre;
+  var body = m.body;
+  var post = m.post;
+  var p = pre.split(',');
+  p[p.length - 1] += '{' + body + '}';
+  var postParts = parseCommaParts(post);
+
+  if (post.length) {
+    p[p.length - 1] += postParts.shift();
+    p.push.apply(p, postParts);
+  }
+
+  parts.push.apply(parts, p);
+  return parts;
+}
+
+function expandTop(str) {
+  if (!str) return []; // I don't know why Bash 4.3 does this, but it does.
+  // Anything starting with {} will have the first two bytes preserved
+  // but *only* at the top level, so {},a}b will not expand to anything,
+  // but a{},b}c will be expanded to [a}c,abc].
+  // One could argue that this is a bug in Bash, but since the goal of
+  // this module is to match Bash's rules, we escape a leading {}
+
+  if (str.substr(0, 2) === '{}') {
+    str = '\\{\\}' + str.substr(2);
+  }
+
+  return expand(escapeBraces(str), true).map(unescapeBraces);
+}
+
+function identity(e) {
+  return e;
+}
+
+function embrace(str) {
+  return '{' + str + '}';
+}
+
+function isPadded(el) {
+  return /^-?0\d/.test(el);
+}
+
+function lte(i, y) {
+  return i <= y;
+}
+
+function gte(i, y) {
+  return i >= y;
+}
+
+function expand(str, isTop) {
+  var expansions = [];
+  var m = balanced('{', '}', str);
+  if (!m || /\$$/.test(m.pre)) return [str];
+  var isNumericSequence = /^-?\d+\.\.-?\d+(?:\.\.-?\d+)?$/.test(m.body);
+  var isAlphaSequence = /^[a-zA-Z]\.\.[a-zA-Z](?:\.\.-?\d+)?$/.test(m.body);
+  var isSequence = isNumericSequence || isAlphaSequence;
+  var isOptions = m.body.indexOf(',') >= 0;
+
+  if (!isSequence && !isOptions) {
+    // {a},b}
+    if (m.post.match(/,.*\}/)) {
+      str = m.pre + '{' + m.body + escClose + m.post;
+      return expand(str);
+    }
+
+    return [str];
+  }
+
+  var n;
+
+  if (isSequence) {
+    n = m.body.split(/\.\./);
+  } else {
+    n = parseCommaParts(m.body);
+
+    if (n.length === 1) {
+      // x{{a,b}}y ==> x{a}y x{b}y
+      n = expand(n[0], false).map(embrace);
+
+      if (n.length === 1) {
+        var post = m.post.length ? expand(m.post, false) : [''];
+        return post.map(function (p) {
+          return m.pre + n[0] + p;
+        });
+      }
+    }
+  } // at this point, n is the parts, and we know it's not a comma set
+  // with a single entry.
+  // no need to expand pre, since it is guaranteed to be free of brace-sets
+
+
+  var pre = m.pre;
+  var post = m.post.length ? expand(m.post, false) : [''];
+  var N;
+
+  if (isSequence) {
+    var x = numeric(n[0]);
+    var y = numeric(n[1]);
+    var width = Math.max(n[0].length, n[1].length);
+    var incr = n.length == 3 ? Math.abs(numeric(n[2])) : 1;
+    var test = lte;
+    var reverse = y < x;
+
+    if (reverse) {
+      incr *= -1;
+      test = gte;
+    }
+
+    var pad = n.some(isPadded);
+    N = [];
+
+    for (var i = x; test(i, y); i += incr) {
+      var c;
+
+      if (isAlphaSequence) {
+        c = String.fromCharCode(i);
+        if (c === '\\') c = '';
+      } else {
+        c = String(i);
+
+        if (pad) {
+          var need = width - c.length;
+
+          if (need > 0) {
+            var z = new Array(need + 1).join('0');
+            if (i < 0) c = '-' + z + c.slice(1);else c = z + c;
+          }
+        }
+      }
+
+      N.push(c);
+    }
+  } else {
+    N = concatMap(n, function (el) {
+      return expand(el, false);
+    });
+  }
+
+  for (var j = 0; j < N.length; j++) {
+    for (var k = 0; k < post.length; k++) {
+      var expansion = pre + N[j] + post[k];
+      if (!isTop || isSequence || expansion) expansions.push(expansion);
+    }
+  }
+
+  return expansions;
+}
+
+/***/ }),
+/* 864 */
+/***/ ((module) => {
+
+module.exports = function (xs, fn) {
+  var res = [];
+
+  for (var i = 0; i < xs.length; i++) {
+    var x = fn(xs[i], i);
+    if (isArray(x)) res.push.apply(res, x);else res.push(x);
+  }
+
+  return res;
+};
+
+var isArray = Array.isArray || function (xs) {
+  return Object.prototype.toString.call(xs) === '[object Array]';
+};
+
+/***/ }),
+/* 865 */
+/***/ ((module) => {
+
+"use strict";
+
+
+module.exports = balanced;
+
+function balanced(a, b, str) {
+  if (a instanceof RegExp) a = maybeMatch(a, str);
+  if (b instanceof RegExp) b = maybeMatch(b, str);
+  var r = range(a, b, str);
+  return r && {
+    start: r[0],
+    end: r[1],
+    pre: str.slice(0, r[0]),
+    body: str.slice(r[0] + a.length, r[1]),
+    post: str.slice(r[1] + b.length)
+  };
+}
+
+function maybeMatch(reg, str) {
+  var m = str.match(reg);
+  return m ? m[0] : null;
+}
+
+balanced.range = range;
+
+function range(a, b, str) {
+  var begs, beg, left, right, result;
+  var ai = str.indexOf(a);
+  var bi = str.indexOf(b, ai + 1);
+  var i = ai;
+
+  if (ai >= 0 && bi > 0) {
+    if (a === b) {
+      return [ai, bi];
+    }
+
+    begs = [];
+    left = str.length;
+
+    while (i >= 0 && !result) {
+      if (i == ai) {
+        begs.push(i);
+        ai = str.indexOf(a, i + 1);
+      } else if (begs.length == 1) {
+        result = [begs.pop(), bi];
+      } else {
+        beg = begs.pop();
+
+        if (beg < left) {
+          left = beg;
+          right = bi;
+        }
+
+        bi = str.indexOf(b, i + 1);
+      }
+
+      i = ai < bi && ai >= 0 ? ai : bi;
+    }
+
+    if (begs.length) {
+      result = [left, right];
+    }
+  }
+
+  return result;
+}
+
+/***/ }),
+/* 866 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+/**
+ * @filedescription Object Schema Package
+ */
+exports.ObjectSchema = __webpack_require__(867).ObjectSchema;
+exports.MergeStrategy = __webpack_require__(868).MergeStrategy;
+exports.ValidationStrategy = __webpack_require__(869).ValidationStrategy;
+
+/***/ }),
+/* 867 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+/**
+ * @filedescription Object Schema
+ */
+ //-----------------------------------------------------------------------------
+// Requirements
+//-----------------------------------------------------------------------------
+
+const {
+  MergeStrategy
+} = __webpack_require__(868);
+
+const {
+  ValidationStrategy
+} = __webpack_require__(869); //-----------------------------------------------------------------------------
+// Private
+//-----------------------------------------------------------------------------
+
+
+const strategies = Symbol("strategies");
+const requiredKeys = Symbol("requiredKeys");
+/**
+ * Validates a schema strategy.
+ * @param {string} name The name of the key this strategy is for.
+ * @param {Object} strategy The strategy for the object key.
+ * @param {boolean} [strategy.required=true] Whether the key is required.
+ * @param {string[]} [strategy.requires] Other keys that are required when
+ *      this key is present.
+ * @param {Function} strategy.merge A method to call when merging two objects
+ *      with the same key.
+ * @param {Function} strategy.validate A method to call when validating an
+ *      object with the key.
+ * @returns {void}
+ * @throws {Error} When the strategy is missing a name.
+ * @throws {Error} When the strategy is missing a merge() method.
+ * @throws {Error} When the strategy is missing a validate() method.
+ */
+
+function validateDefinition(name, strategy) {
+  let hasSchema = false;
+
+  if (strategy.schema) {
+    if (typeof strategy.schema === "object") {
+      hasSchema = true;
+    } else {
+      throw new TypeError("Schema must be an object.");
+    }
+  }
+
+  if (typeof strategy.merge === "string") {
+    if (!(strategy.merge in MergeStrategy)) {
+      throw new TypeError("Definition for key \"".concat(name, "\" missing valid merge strategy."));
+    }
+  } else if (!hasSchema && typeof strategy.merge !== "function") {
+    throw new TypeError("Definition for key \"".concat(name, "\" must have a merge property."));
+  }
+
+  if (typeof strategy.validate === "string") {
+    if (!(strategy.validate in ValidationStrategy)) {
+      throw new TypeError("Definition for key \"".concat(name, "\" missing valid validation strategy."));
+    }
+  } else if (!hasSchema && typeof strategy.validate !== "function") {
+    throw new TypeError("Definition for key \"".concat(name, "\" must have a validate() method."));
+  }
+} //-----------------------------------------------------------------------------
+// Class
+//-----------------------------------------------------------------------------
+
+/**
+ * Represents an object validation/merging schema.
+ */
+
+
+class ObjectSchema {
+  /**
+   * Creates a new instance.
+   */
+  constructor(definitions) {
+    if (!definitions) {
+      throw new Error("Schema definitions missing.");
+    }
+    /**
+     * Track all strategies in the schema by key.
+     * @type {Map}
+     * @property strategies
+     */
+
+
+    this[strategies] = new Map();
+    /**
+     * Separately track any keys that are required for faster validation.
+     * @type {Map}
+     * @property requiredKeys
+     */
+
+    this[requiredKeys] = new Map(); // add in all strategies
+
+    for (const key of Object.keys(definitions)) {
+      validateDefinition(key, definitions[key]); // normalize merge and validate methods if subschema is present
+
+      if (typeof definitions[key].schema === "object") {
+        const schema = new ObjectSchema(definitions[key].schema);
+        definitions[key] = { ...definitions[key],
+
+          merge() {
+            let first = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+            let second = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+            return schema.merge(first, second);
+          },
+
+          validate(value) {
+            ValidationStrategy.object(value);
+            schema.validate(value);
+          }
+
+        };
+      } // normalize the merge method in case there's a string
+
+
+      if (typeof definitions[key].merge === "string") {
+        definitions[key] = { ...definitions[key],
+          merge: MergeStrategy[definitions[key].merge]
+        };
+      }
+
+      ; // normalize the validate method in case there's a string
+
+      if (typeof definitions[key].validate === "string") {
+        definitions[key] = { ...definitions[key],
+          validate: ValidationStrategy[definitions[key].validate]
+        };
+      }
+
+      ;
+      this[strategies].set(key, definitions[key]);
+
+      if (definitions[key].required) {
+        this[requiredKeys].set(key, definitions[key]);
+      }
+    }
+  }
+  /**
+   * Determines if a strategy has been registered for the given object key.
+   * @param {string} key The object key to find a strategy for.
+   * @returns {boolean} True if the key has a strategy registered, false if not. 
+   */
+
+
+  hasKey(key) {
+    return this[strategies].has(key);
+  }
+  /**
+   * Merges objects together to create a new object comprised of the keys
+   * of the all objects. Keys are merged based on the each key's merge
+   * strategy.
+   * @param {...Object} objects The objects to merge.
+   * @returns {Object} A new object with a mix of all objects' keys.
+   * @throws {Error} If any object is invalid.
+   */
+
+
+  merge() {
+    for (var _len = arguments.length, objects = new Array(_len), _key = 0; _key < _len; _key++) {
+      objects[_key] = arguments[_key];
+    }
+
+    // double check arguments
+    if (objects.length < 2) {
+      throw new Error("merge() requires at least two arguments.");
+    }
+
+    if (objects.some(object => object == null || typeof object !== "object")) {
+      throw new Error("All arguments must be objects.");
+    }
+
+    return objects.reduce((result, object) => {
+      this.validate(object);
+
+      for (const [key, strategy] of this[strategies]) {
+        try {
+          if (key in result || key in object) {
+            const value = strategy.merge.call(this, result[key], object[key]);
+
+            if (value !== undefined) {
+              result[key] = value;
+            }
+          }
+        } catch (ex) {
+          ex.message = "Key \"".concat(key, "\": ") + ex.message;
+          throw ex;
+        }
+      }
+
+      return result;
+    }, {});
+  }
+  /**
+   * Validates an object's keys based on the validate strategy for each key.
+   * @param {Object} object The object to validate.
+   * @returns {void}
+   * @throws {Error} When the object is invalid. 
+   */
+
+
+  validate(object) {
+    // check existing keys first
+    for (const key of Object.keys(object)) {
+      // check to see if the key is defined
+      if (!this.hasKey(key)) {
+        throw new Error("Unexpected key \"".concat(key, "\" found."));
+      } // validate existing keys
+
+
+      const strategy = this[strategies].get(key); // first check to see if any other keys are required
+
+      if (Array.isArray(strategy.requires)) {
+        if (!strategy.requires.every(otherKey => otherKey in object)) {
+          throw new Error("Key \"".concat(key, "\" requires keys \"").concat(strategy.requires.join("\", \""), "\"."));
+        }
+      } // now apply remaining validation strategy
+
+
+      try {
+        strategy.validate.call(strategy, object[key]);
+      } catch (ex) {
+        ex.message = "Key \"".concat(key, "\": ") + ex.message;
+        throw ex;
+      }
+    } // ensure required keys aren't missing
+
+
+    for (const [key] of this[requiredKeys]) {
+      if (!(key in object)) {
+        throw new Error("Missing required key \"".concat(key, "\"."));
+      }
+    }
+  }
+
+}
+
+exports.ObjectSchema = ObjectSchema;
+
+/***/ }),
+/* 868 */
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+/**
+ * @filedescription Merge Strategy
+ */
+ //-----------------------------------------------------------------------------
+// Class
+//-----------------------------------------------------------------------------
+
+/**
+ * Container class for several different merge strategies.
+ */
+
+class MergeStrategy {
+  /**
+   * Merges two keys by overwriting the first with the second.
+   * @param {*} value1 The value from the first object key. 
+   * @param {*} value2 The value from the second object key.
+   * @returns {*} The second value.
+   */
+  static overwrite(value1, value2) {
+    return value2;
+  }
+  /**
+   * Merges two keys by replacing the first with the second only if the
+   * second is defined.
+   * @param {*} value1 The value from the first object key. 
+   * @param {*} value2 The value from the second object key.
+   * @returns {*} The second value if it is defined.
+   */
+
+
+  static replace(value1, value2) {
+    if (typeof value2 !== "undefined") {
+      return value2;
+    }
+
+    return value1;
+  }
+  /**
+   * Merges two properties by assigning properties from the second to the first.
+   * @param {*} value1 The value from the first object key.
+   * @param {*} value2 The value from the second object key.
+   * @returns {*} A new object containing properties from both value1 and
+   *      value2.
+   */
+
+
+  static assign(value1, value2) {
+    return Object.assign({}, value1, value2);
+  }
+
+}
+
+exports.MergeStrategy = MergeStrategy;
+
+/***/ }),
+/* 869 */
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+/**
+ * @filedescription Validation Strategy
+ */
+ //-----------------------------------------------------------------------------
+// Class
+//-----------------------------------------------------------------------------
+
+/**
+ * Container class for several different validation strategies.
+ */
+
+class ValidationStrategy {
+  /**
+   * Validates that a value is an array.
+   * @param {*} value The value to validate.
+   * @returns {void}
+   * @throws {TypeError} If the value is invalid. 
+   */
+  static array(value) {
+    if (!Array.isArray(value)) {
+      throw new TypeError("Expected an array.");
+    }
+  }
+  /**
+   * Validates that a value is a boolean.
+   * @param {*} value The value to validate.
+   * @returns {void}
+   * @throws {TypeError} If the value is invalid. 
+   */
+
+
+  static boolean(value) {
+    if (typeof value !== "boolean") {
+      throw new TypeError("Expected a Boolean.");
+    }
+  }
+  /**
+   * Validates that a value is a number.
+   * @param {*} value The value to validate.
+   * @returns {void}
+   * @throws {TypeError} If the value is invalid. 
+   */
+
+
+  static number(value) {
+    if (typeof value !== "number") {
+      throw new TypeError("Expected a number.");
+    }
+  }
+  /**
+   * Validates that a value is a object.
+   * @param {*} value The value to validate.
+   * @returns {void}
+   * @throws {TypeError} If the value is invalid. 
+   */
+
+
+  static object(value) {
+    if (!value || typeof value !== "object") {
+      throw new TypeError("Expected an object.");
+    }
+  }
+  /**
+   * Validates that a value is a object or null.
+   * @param {*} value The value to validate.
+   * @returns {void}
+   * @throws {TypeError} If the value is invalid. 
+   */
+
+
+  static "object?"(value) {
+    if (typeof value !== "object") {
+      throw new TypeError("Expected an object or null.");
+    }
+  }
+  /**
+   * Validates that a value is a string.
+   * @param {*} value The value to validate.
+   * @returns {void}
+   * @throws {TypeError} If the value is invalid. 
+   */
+
+
+  static string(value) {
+    if (typeof value !== "string") {
+      throw new TypeError("Expected a string.");
+    }
+  }
+  /**
+   * Validates that a value is a non-empty string.
+   * @param {*} value The value to validate.
+   * @returns {void}
+   * @throws {TypeError} If the value is invalid. 
+   */
+
+
+  static "string!"(value) {
+    if (typeof value !== "string" || value.length === 0) {
+      throw new TypeError("Expected a non-empty string.");
+    }
+  }
+
+}
+
+exports.ValidationStrategy = ValidationStrategy;
+
+/***/ }),
+/* 870 */
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+/**
+ * @fileoverview Flat config schema
+ * @author Nicholas C. Zakas
+ */
+ //-----------------------------------------------------------------------------
+// Type Definitions
+//-----------------------------------------------------------------------------
+
+/**
+ * @typedef ObjectPropertySchema
+ * @property {Function|string} merge The function or name of the function to call
+ *      to merge multiple objects with this property.
+ * @property {Function|string} validate The function or name of the function to call
+ *      to validate the value of this property.
+ */
+//-----------------------------------------------------------------------------
+// Helpers
+//-----------------------------------------------------------------------------
+
+const ruleSeverities = new Map([[0, 0], ["off", 0], [1, 1], ["warn", 1], [2, 2], ["error", 2]]);
+const globalVariablesValues = new Set([true, "true", "writable", "writeable", false, "false", "readonly", "readable", null, "off"]);
+/**
+ * Check if a value is a non-null object.
+ * @param {any} value The value to check.
+ * @returns {boolean} `true` if the value is a non-null object.
+ */
+
+function isNonNullObject(value) {
+  return typeof value === "object" && value !== null;
+}
+/**
+ * Check if a value is undefined.
+ * @param {any} value The value to check.
+ * @returns {boolean} `true` if the value is undefined.
+ */
+
+
+function isUndefined(value) {
+  return typeof value === "undefined";
+}
+/**
+ * Deeply merges two objects.
+ * @param {Object} first The base object.
+ * @param {Object} second The overrides object.
+ * @returns {Object} An object with properties from both first and second.
+ */
+
+
+function deepMerge() {
+  let first = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+  let second = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+  /*
+   * If the second value is an array, just return it. We don't merge
+   * arrays because order matters and we can't know the correct order.
+   */
+  if (Array.isArray(second)) {
+    return second;
+  }
+  /*
+   * First create a result object where properties from the second object
+   * overwrite properties from the first. This sets up a baseline to use
+   * later rather than needing to inspect and change every property
+   * individually.
+   */
+
+
+  const result = { ...first,
+    ...second
+  };
+
+  for (const key of Object.keys(second)) {
+    // avoid hairy edge case
+    if (key === "__proto__") {
+      continue;
+    }
+
+    const firstValue = first[key];
+    const secondValue = second[key];
+
+    if (isNonNullObject(firstValue)) {
+      result[key] = deepMerge(firstValue, secondValue);
+    } else if (isUndefined(firstValue)) {
+      if (isNonNullObject(secondValue)) {
+        result[key] = deepMerge(Array.isArray(secondValue) ? [] : {}, secondValue);
+      } else if (!isUndefined(secondValue)) {
+        result[key] = secondValue;
+      }
+    }
+  }
+
+  return result;
+}
+/**
+ * Normalizes the rule options config for a given rule by ensuring that
+ * it is an array and that the first item is 0, 1, or 2.
+ * @param {Array|string|number} ruleOptions The rule options config.
+ * @returns {Array} An array of rule options.
+ */
+
+
+function normalizeRuleOptions(ruleOptions) {
+  const finalOptions = Array.isArray(ruleOptions) ? ruleOptions.slice(0) : [ruleOptions];
+  finalOptions[0] = ruleSeverities.get(finalOptions[0]);
+  return finalOptions;
+} //-----------------------------------------------------------------------------
+// Assertions
+//-----------------------------------------------------------------------------
+
+/**
+ * Validates that a value is a valid rule options entry.
+ * @param {any} value The value to check.
+ * @returns {void}
+ * @throws {TypeError} If the value isn't a valid rule options.
+ */
+
+
+function assertIsRuleOptions(value) {
+  if (typeof value !== "string" && typeof value !== "number" && !Array.isArray(value)) {
+    throw new TypeError("Expected a string, number, or array.");
+  }
+}
+/**
+ * Validates that a value is valid rule severity.
+ * @param {any} value The value to check.
+ * @returns {void}
+ * @throws {TypeError} If the value isn't a valid rule severity.
+ */
+
+
+function assertIsRuleSeverity(value) {
+  const severity = typeof value === "string" ? ruleSeverities.get(value.toLowerCase()) : ruleSeverities.get(value);
+
+  if (typeof severity === "undefined") {
+    throw new TypeError("Expected severity of \"off\", 0, \"warn\", 1, \"error\", or 2.");
+  }
+}
+/**
+ * Validates that a given string is the form pluginName/objectName.
+ * @param {string} value The string to check.
+ * @returns {void}
+ * @throws {TypeError} If the string isn't in the correct format.
+ */
+
+
+function assertIsPluginMemberName(value) {
+  if (!/[@a-z0-9-_$]+(?:\/(?:[a-z0-9-_$]+))+$/iu.test(value)) {
+    throw new TypeError("Expected string in the form \"pluginName/objectName\" but found \"".concat(value, "\"."));
+  }
+}
+/**
+ * Validates that a value is an object.
+ * @param {any} value The value to check.
+ * @returns {void}
+ * @throws {TypeError} If the value isn't an object.
+ */
+
+
+function assertIsObject(value) {
+  if (!isNonNullObject(value)) {
+    throw new TypeError("Expected an object.");
+  }
+}
+/**
+ * Validates that a value is an object or a string.
+ * @param {any} value The value to check.
+ * @returns {void}
+ * @throws {TypeError} If the value isn't an object or a string.
+ */
+
+
+function assertIsObjectOrString(value) {
+  if ((!value || typeof value !== "object") && typeof value !== "string") {
+    throw new TypeError("Expected an object or string.");
+  }
+} //-----------------------------------------------------------------------------
+// Low-Level Schemas
+//-----------------------------------------------------------------------------
+
+/** @type {ObjectPropertySchema} */
+
+
+const booleanSchema = {
+  merge: "replace",
+  validate: "boolean"
+};
+/** @type {ObjectPropertySchema} */
+
+const deepObjectAssignSchema = {
+  merge() {
+    let first = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    let second = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    return deepMerge(first, second);
+  },
+
+  validate: "object"
+}; //-----------------------------------------------------------------------------
+// High-Level Schemas
+//-----------------------------------------------------------------------------
+
+/** @type {ObjectPropertySchema} */
+
+const globalsSchema = {
+  merge: "assign",
+
+  validate(value) {
+    assertIsObject(value);
+
+    for (const key of Object.keys(value)) {
+      // avoid hairy edge case
+      if (key === "__proto__") {
+        continue;
+      }
+
+      if (key !== key.trim()) {
+        throw new TypeError("Global \"".concat(key, "\" has leading or trailing whitespace."));
+      }
+
+      if (!globalVariablesValues.has(value[key])) {
+        throw new TypeError("Key \"".concat(key, "\": Expected \"readonly\", \"writable\", or \"off\"."));
+      }
+    }
+  }
+
+};
+/** @type {ObjectPropertySchema} */
+
+const parserSchema = {
+  merge: "replace",
+
+  validate(value) {
+    assertIsObjectOrString(value);
+
+    if (typeof value === "object" && typeof value.parse !== "function" && typeof value.parseForESLint !== "function") {
+      throw new TypeError("Expected object to have a parse() or parseForESLint() method.");
+    }
+
+    if (typeof value === "string") {
+      assertIsPluginMemberName(value);
+    }
+  }
+
+};
+/** @type {ObjectPropertySchema} */
+
+const pluginsSchema = {
+  merge() {
+    let first = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    let second = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    const keys = new Set([...Object.keys(first), ...Object.keys(second)]);
+    const result = {}; // manually validate that plugins are not redefined
+
+    for (const key of keys) {
+      // avoid hairy edge case
+      if (key === "__proto__") {
+        continue;
+      }
+
+      if (key in first && key in second && first[key] !== second[key]) {
+        throw new TypeError("Cannot redefine plugin \"".concat(key, "\"."));
+      }
+
+      result[key] = second[key] || first[key];
+    }
+
+    return result;
+  },
+
+  validate(value) {
+    // first check the value to be sure it's an object
+    if (value === null || typeof value !== "object") {
+      throw new TypeError("Expected an object.");
+    } // second check the keys to make sure they are objects
+
+
+    for (const key of Object.keys(value)) {
+      // avoid hairy edge case
+      if (key === "__proto__") {
+        continue;
+      }
+
+      if (value[key] === null || typeof value[key] !== "object") {
+        throw new TypeError("Key \"".concat(key, "\": Expected an object."));
+      }
+    }
+  }
+
+};
+/** @type {ObjectPropertySchema} */
+
+const processorSchema = {
+  merge: "replace",
+
+  validate(value) {
+    if (typeof value === "string") {
+      assertIsPluginMemberName(value);
+    } else if (value && typeof value === "object") {
+      if (typeof value.preprocess !== "function" || typeof value.postprocess !== "function") {
+        throw new TypeError("Object must have a preprocess() and a postprocess() method.");
+      }
+    } else {
+      throw new TypeError("Expected an object or a string.");
+    }
+  }
+
+};
+/** @type {ObjectPropertySchema} */
+
+const rulesSchema = {
+  merge() {
+    let first = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    let second = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    const result = { ...first,
+      ...second
+    };
+
+    for (const ruleId of Object.keys(result)) {
+      // avoid hairy edge case
+      if (ruleId === "__proto__") {
+        /* eslint-disable-next-line no-proto -- Though deprecated, may still be present */
+        delete result.__proto__;
+        continue;
+      }
+
+      result[ruleId] = normalizeRuleOptions(result[ruleId]);
+      /*
+       * If either rule config is missing, then the correct
+       * config is already present and we just need to normalize
+       * the severity.
+       */
+
+      if (!(ruleId in first) || !(ruleId in second)) {
+        continue;
+      }
+
+      const firstRuleOptions = normalizeRuleOptions(first[ruleId]);
+      const secondRuleOptions = normalizeRuleOptions(second[ruleId]);
+      /*
+       * If the second rule config only has a severity (length of 1),
+       * then use that severity and keep the rest of the options from
+       * the first rule config.
+       */
+
+      if (secondRuleOptions.length === 1) {
+        result[ruleId] = [secondRuleOptions[0], ...firstRuleOptions.slice(1)];
+        continue;
+      }
+      /*
+       * In any other situation, then the second rule config takes
+       * precedence. That means the value at `result[ruleId]` is
+       * already correct and no further work is necessary.
+       */
+
+    }
+
+    return result;
+  },
+
+  validate(value) {
+    assertIsObject(value);
+    let lastRuleId; // Performance: One try-catch has less overhead than one per loop iteration
+
+    try {
+      /*
+       * We are not checking the rule schema here because there is no
+       * guarantee that the rule definition is present at this point. Instead
+       * we wait and check the rule schema during the finalization step
+       * of calculating a config.
+       */
+      for (const ruleId of Object.keys(value)) {
+        // avoid hairy edge case
+        if (ruleId === "__proto__") {
+          continue;
+        }
+
+        lastRuleId = ruleId;
+        const ruleOptions = value[ruleId];
+        assertIsRuleOptions(ruleOptions);
+
+        if (Array.isArray(ruleOptions)) {
+          assertIsRuleSeverity(ruleOptions[0]);
+        } else {
+          assertIsRuleSeverity(ruleOptions);
+        }
+      }
+    } catch (error) {
+      error.message = "Key \"".concat(lastRuleId, "\": ").concat(error.message);
+      throw error;
+    }
+  }
+
+};
+/** @type {ObjectPropertySchema} */
+
+const ecmaVersionSchema = {
+  merge: "replace",
+
+  validate(value) {
+    if (typeof value === "number" || value === "latest") {
+      return;
+    }
+
+    throw new TypeError("Expected a number or \"latest\".");
+  }
+
+};
+/** @type {ObjectPropertySchema} */
+
+const sourceTypeSchema = {
+  merge: "replace",
+
+  validate(value) {
+    if (typeof value !== "string" || !/^(?:script|module|commonjs)$/u.test(value)) {
+      throw new TypeError("Expected \"script\", \"module\", or \"commonjs\".");
+    }
+  }
+
+}; //-----------------------------------------------------------------------------
+// Full schema
+//-----------------------------------------------------------------------------
+
+exports.flatConfigSchema = {
+  settings: deepObjectAssignSchema,
+  linterOptions: {
+    schema: {
+      noInlineConfig: booleanSchema,
+      reportUnusedDisableDirectives: booleanSchema
+    }
+  },
+  languageOptions: {
+    schema: {
+      ecmaVersion: ecmaVersionSchema,
+      sourceType: sourceTypeSchema,
+      globals: globalsSchema,
+      parser: parserSchema,
+      parserOptions: deepObjectAssignSchema
+    }
+  },
+  processor: processorSchema,
+  plugins: pluginsSchema,
+  rules: rulesSchema
+};
+
+/***/ }),
+/* 871 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+/**
+ * @fileoverview Rule Validator
+ * @author Nicholas C. Zakas
+ */
+ //-----------------------------------------------------------------------------
+// Requirements
+//-----------------------------------------------------------------------------
+
+const ajv = __webpack_require__(872)();
+
+const {
+  parseRuleId,
+  getRuleFromConfig
+} = __webpack_require__(859);
+
+const ruleReplacements = __webpack_require__(858); //-----------------------------------------------------------------------------
+// Helpers
+//-----------------------------------------------------------------------------
+
+/**
+ * Throws a helpful error when a rule cannot be found.
+ * @param {Object} ruleId The rule identifier.
+ * @param {string} ruleId.pluginName The ID of the rule to find.
+ * @param {string} ruleId.ruleName The ID of the rule to find.
+ * @param {Object} config The config to search in.
+ * @throws {TypeError} For missing plugin or rule.
+ * @returns {void}
+ */
+
+
+function throwRuleNotFoundError(_ref, config) {
+  let {
+    pluginName,
+    ruleName
+  } = _ref;
+  const ruleId = pluginName === "@" ? ruleName : "".concat(pluginName, "/").concat(ruleName);
+  const errorMessageHeader = "Key \"rules\": Key \"".concat(ruleId, "\"");
+  let errorMessage = "".concat(errorMessageHeader, ": Could not find plugin \"").concat(pluginName, "\"."); // if the plugin exists then we need to check if the rule exists
+
+  if (config.plugins && config.plugins[pluginName]) {
+    const replacementRuleName = ruleReplacements.rules[ruleName];
+
+    if (pluginName === "@" && replacementRuleName) {
+      errorMessage = "".concat(errorMessageHeader, ": Rule \"").concat(ruleName, "\" was removed and replaced by \"").concat(replacementRuleName, "\".");
+    } else {
+      errorMessage = "".concat(errorMessageHeader, ": Could not find \"").concat(ruleName, "\" in plugin \"").concat(pluginName, "\"."); // otherwise, let's see if we can find the rule name elsewhere
+
+      for (const [otherPluginName, otherPlugin] of Object.entries(config.plugins)) {
+        if (otherPlugin.rules && otherPlugin.rules[ruleName]) {
+          errorMessage += " Did you mean \"".concat(otherPluginName, "/").concat(ruleName, "\"?");
+          break;
+        }
+      }
+    } // falls through to throw error
+
+  }
+
+  throw new TypeError(errorMessage);
+}
+/**
+ * Gets a complete options schema for a rule.
+ * @param {{create: Function, schema: (Array|null)}} rule A new-style rule object
+ * @returns {Object} JSON Schema for the rule's options.
+ */
+
+
+function getRuleOptionsSchema(rule) {
+  if (!rule) {
+    return null;
+  }
+
+  const schema = rule.schema || rule.meta && rule.meta.schema;
+
+  if (Array.isArray(schema)) {
+    if (schema.length) {
+      return {
+        type: "array",
+        items: schema,
+        minItems: 0,
+        maxItems: schema.length
+      };
+    }
+
+    return {
+      type: "array",
+      minItems: 0,
+      maxItems: 0
+    };
+  } // Given a full schema, leave it alone
+
+
+  return schema || null;
+} //-----------------------------------------------------------------------------
+// Exports
+//-----------------------------------------------------------------------------
+
+/**
+ * Implements validation functionality for the rules portion of a config.
+ */
+
+
+class RuleValidator {
+  /**
+   * Creates a new instance.
+   */
+  constructor() {
+    /**
+     * A collection of compiled validators for rules that have already
+     * been validated.
+     * @type {WeakMap}
+     */
+    this.validators = new WeakMap();
+  }
+  /**
+   * Validates all of the rule configurations in a config against each
+   * rule's schema.
+   * @param {Object} config The full config to validate. This object must
+   *      contain both the rules section and the plugins section.
+   * @returns {void}
+   * @throws {Error} If a rule's configuration does not match its schema.
+   */
+
+
+  validate(config) {
+    if (!config.rules) {
+      return;
+    }
+
+    for (const [ruleId, ruleOptions] of Object.entries(config.rules)) {
+      // check for edge case
+      if (ruleId === "__proto__") {
+        continue;
+      }
+      /*
+       * If a rule is disabled, we don't do any validation. This allows
+       * users to safely set any value to 0 or "off" without worrying
+       * that it will cause a validation error.
+       *
+       * Note: ruleOptions is always an array at this point because
+       * this validation occurs after FlatConfigArray has merged and
+       * normalized values.
+       */
+
+
+      if (ruleOptions[0] === 0) {
+        continue;
+      }
+
+      const rule = getRuleFromConfig(ruleId, config);
+
+      if (!rule) {
+        throwRuleNotFoundError(parseRuleId(ruleId), config);
+      } // Precompile and cache validator the first time
+
+
+      if (!this.validators.has(rule)) {
+        const schema = getRuleOptionsSchema(rule);
+
+        if (schema) {
+          this.validators.set(rule, ajv.compile(schema));
+        }
+      }
+
+      const validateRule = this.validators.get(rule);
+
+      if (validateRule) {
+        validateRule(ruleOptions.slice(1));
+
+        if (validateRule.errors) {
+          throw new Error("Key \"rules\": Key \"".concat(ruleId, "\": ").concat(validateRule.errors.map(error => "\tValue ".concat(JSON.stringify(error.data), " ").concat(error.message, ".\n")).join("")));
+        }
+      }
+    }
+  }
+
+}
+
+exports.RuleValidator = RuleValidator;
+
+/***/ }),
+/* 872 */
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+/**
+ * @fileoverview The instance of Ajv validator.
+ * @author Evgeny Poberezkin
+ */
+ //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const Ajv = __webpack_require__(446),
+      metaSchema = __webpack_require__(873); //------------------------------------------------------------------------------
+// Public Interface
+//------------------------------------------------------------------------------
+
+
+module.exports = function () {
+  let additionalOptions = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+  const ajv = new Ajv({
+    meta: false,
+    useDefaults: true,
+    validateSchema: false,
+    missingRefs: "ignore",
+    verbose: true,
+    schemaId: "auto",
+    ...additionalOptions
+  });
+  ajv.addMetaSchema(metaSchema); // eslint-disable-next-line no-underscore-dangle -- Ajv's API
+
+  ajv._opts.defaultMeta = metaSchema.id;
+  return ajv;
+};
+
+/***/ }),
+/* 873 */
+/***/ ((module) => {
+
+"use strict";
+module.exports = JSON.parse('{"id":"http://json-schema.org/draft-04/schema#","$schema":"http://json-schema.org/draft-04/schema#","description":"Core schema meta-schema","definitions":{"schemaArray":{"type":"array","minItems":1,"items":{"$ref":"#"}},"positiveInteger":{"type":"integer","minimum":0},"positiveIntegerDefault0":{"allOf":[{"$ref":"#/definitions/positiveInteger"},{"default":0}]},"simpleTypes":{"enum":["array","boolean","integer","null","number","object","string"]},"stringArray":{"type":"array","items":{"type":"string"},"minItems":1,"uniqueItems":true}},"type":"object","properties":{"id":{"type":"string"},"$schema":{"type":"string"},"title":{"type":"string"},"description":{"type":"string"},"default":{},"multipleOf":{"type":"number","minimum":0,"exclusiveMinimum":true},"maximum":{"type":"number"},"exclusiveMaximum":{"type":"boolean","default":false},"minimum":{"type":"number"},"exclusiveMinimum":{"type":"boolean","default":false},"maxLength":{"$ref":"#/definitions/positiveInteger"},"minLength":{"$ref":"#/definitions/positiveIntegerDefault0"},"pattern":{"type":"string","format":"regex"},"additionalItems":{"anyOf":[{"type":"boolean"},{"$ref":"#"}],"default":{}},"items":{"anyOf":[{"$ref":"#"},{"$ref":"#/definitions/schemaArray"}],"default":{}},"maxItems":{"$ref":"#/definitions/positiveInteger"},"minItems":{"$ref":"#/definitions/positiveIntegerDefault0"},"uniqueItems":{"type":"boolean","default":false},"maxProperties":{"$ref":"#/definitions/positiveInteger"},"minProperties":{"$ref":"#/definitions/positiveIntegerDefault0"},"required":{"$ref":"#/definitions/stringArray"},"additionalProperties":{"anyOf":[{"type":"boolean"},{"$ref":"#"}],"default":{}},"definitions":{"type":"object","additionalProperties":{"$ref":"#"},"default":{}},"properties":{"type":"object","additionalProperties":{"$ref":"#"},"default":{}},"patternProperties":{"type":"object","additionalProperties":{"$ref":"#"},"default":{}},"dependencies":{"type":"object","additionalProperties":{"anyOf":[{"$ref":"#"},{"$ref":"#/definitions/stringArray"}]}},"enum":{"type":"array","minItems":1,"uniqueItems":true},"type":{"anyOf":[{"$ref":"#/definitions/simpleTypes"},{"type":"array","items":{"$ref":"#/definitions/simpleTypes"},"minItems":1,"uniqueItems":true}]},"format":{"type":"string"},"allOf":{"$ref":"#/definitions/schemaArray"},"anyOf":{"$ref":"#/definitions/schemaArray"},"oneOf":{"$ref":"#/definitions/schemaArray"},"not":{"$ref":"#"}},"dependencies":{"exclusiveMaximum":["maximum"],"exclusiveMinimum":["minimum"]},"default":{}}');
+
+/***/ }),
+/* 874 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+/**
+ * @fileoverview Default configuration
+ * @author Nicholas C. Zakas
+ */
+ //-----------------------------------------------------------------------------
+// Requirements
+//-----------------------------------------------------------------------------
+
+const Rules = __webpack_require__(545); //-----------------------------------------------------------------------------
+// Helpers
+//-----------------------------------------------------------------------------
+
+
+exports.defaultConfig = [{
+  plugins: {
+    "@": {
+      parsers: {
+        espree: __webpack_require__(436)
+      },
+
+      /*
+       * Because we try to delay loading rules until absolutely
+       * necessary, a proxy allows us to hook into the lazy-loading
+       * aspect of the rules map while still keeping all of the
+       * relevant configuration inside of the config array.
+       */
+      rules: new Proxy({}, {
+        get(target, property) {
+          return Rules.get(property);
+        },
+
+        has(target, property) {
+          return Rules.has(property);
+        }
+
+      })
+    }
+  },
+  ignores: ["**/node_modules/**", ".git/**"],
+  languageOptions: {
+    ecmaVersion: "latest",
+    sourceType: "module",
+    parser: "@/espree",
+    parserOptions: {}
+  }
+}, {
+  files: ["**/*.cjs"],
+  languageOptions: {
+    sourceType: "commonjs"
+  }
+}];
+
+/***/ }),
+/* 875 */
+/***/ ((module) => {
+
+"use strict";
+/**
+ * @fileoverview Configuration applied when a user configuration extends from
+ * eslint:recommended.
+ * @author Nicholas C. Zakas
+ */
+
+/* eslint sort-keys: ["error", "asc"] -- Long, so make more readable */
+
+/** @type {import("../lib/shared/types").ConfigData} */
+
+module.exports = {
+  rules: {
+    "constructor-super": "error",
+    "for-direction": "error",
+    "getter-return": "error",
+    "no-async-promise-executor": "error",
+    "no-case-declarations": "error",
+    "no-class-assign": "error",
+    "no-compare-neg-zero": "error",
+    "no-cond-assign": "error",
+    "no-const-assign": "error",
+    "no-constant-condition": "error",
+    "no-control-regex": "error",
+    "no-debugger": "error",
+    "no-delete-var": "error",
+    "no-dupe-args": "error",
+    "no-dupe-class-members": "error",
+    "no-dupe-else-if": "error",
+    "no-dupe-keys": "error",
+    "no-duplicate-case": "error",
+    "no-empty": "error",
+    "no-empty-character-class": "error",
+    "no-empty-pattern": "error",
+    "no-ex-assign": "error",
+    "no-extra-boolean-cast": "error",
+    "no-extra-semi": "error",
+    "no-fallthrough": "error",
+    "no-func-assign": "error",
+    "no-global-assign": "error",
+    "no-import-assign": "error",
+    "no-inner-declarations": "error",
+    "no-invalid-regexp": "error",
+    "no-irregular-whitespace": "error",
+    "no-loss-of-precision": "error",
+    "no-misleading-character-class": "error",
+    "no-mixed-spaces-and-tabs": "error",
+    "no-new-symbol": "error",
+    "no-nonoctal-decimal-escape": "error",
+    "no-obj-calls": "error",
+    "no-octal": "error",
+    "no-prototype-builtins": "error",
+    "no-redeclare": "error",
+    "no-regex-spaces": "error",
+    "no-self-assign": "error",
+    "no-setter-return": "error",
+    "no-shadow-restricted-names": "error",
+    "no-sparse-arrays": "error",
+    "no-this-before-super": "error",
+    "no-undef": "error",
+    "no-unexpected-multiline": "error",
+    "no-unreachable": "error",
+    "no-unsafe-finally": "error",
+    "no-unsafe-negation": "error",
+    "no-unsafe-optional-chaining": "error",
+    "no-unused-labels": "error",
+    "no-unused-vars": "error",
+    "no-useless-backreference": "error",
+    "no-useless-catch": "error",
+    "no-useless-escape": "error",
+    "no-with": "error",
+    "require-yield": "error",
+    "use-isnan": "error",
+    "valid-typeof": "error"
+  }
+};
+
+/***/ }),
+/* 876 */
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+/**
+ * @fileoverview Config to enable all rules.
+ * @author Robert Fletcher
+ */
+ //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const builtInRules = __webpack_require__(545); //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+
+const allRules = {};
+
+for (const [ruleId, rule] of builtInRules) {
+  if (!rule.meta.deprecated) {
+    allRules[ruleId] = "error";
+  }
+} //------------------------------------------------------------------------------
+// Public Interface
+//------------------------------------------------------------------------------
+
+/** @type {import("../lib/shared/types").ConfigData} */
+
+
+module.exports = {
+  rules: allRules
+};
+
+/***/ }),
+/* 877 */
+/***/ ((module) => {
+
+"use strict";
+/**
+ * @fileoverview Globals for ecmaVersion/sourceType
+ * @author Nicholas C. Zakas
+ */
+ //-----------------------------------------------------------------------------
+// Globals
+//-----------------------------------------------------------------------------
+
+const commonjs = {
+  exports: true,
+  global: false,
+  module: false,
+  require: false
+};
+const es3 = {
+  Array: false,
+  Boolean: false,
+  constructor: false,
+  Date: false,
+  decodeURI: false,
+  decodeURIComponent: false,
+  encodeURI: false,
+  encodeURIComponent: false,
+  Error: false,
+  escape: false,
+  eval: false,
+  EvalError: false,
+  Function: false,
+  hasOwnProperty: false,
+  Infinity: false,
+  isFinite: false,
+  isNaN: false,
+  isPrototypeOf: false,
+  Math: false,
+  NaN: false,
+  Number: false,
+  Object: false,
+  parseFloat: false,
+  parseInt: false,
+  propertyIsEnumerable: false,
+  RangeError: false,
+  ReferenceError: false,
+  RegExp: false,
+  String: false,
+  SyntaxError: false,
+  toLocaleString: false,
+  toString: false,
+  TypeError: false,
+  undefined: false,
+  unescape: false,
+  URIError: false,
+  valueOf: false
+};
+const es5 = { ...es3,
+  JSON: false
+};
+const es2015 = { ...es5,
+  ArrayBuffer: false,
+  DataView: false,
+  Float32Array: false,
+  Float64Array: false,
+  Int16Array: false,
+  Int32Array: false,
+  Int8Array: false,
+  Map: false,
+  Promise: false,
+  Proxy: false,
+  Reflect: false,
+  Set: false,
+  Symbol: false,
+  Uint16Array: false,
+  Uint32Array: false,
+  Uint8Array: false,
+  Uint8ClampedArray: false,
+  WeakMap: false,
+  WeakSet: false
+}; // no new globals in ES2016
+
+const es2016 = { ...es2015
+};
+const es2017 = { ...es2016,
+  Atomics: false,
+  SharedArrayBuffer: false
+}; // no new globals in ES2018
+
+const es2018 = { ...es2017
+}; // no new globals in ES2019
+
+const es2019 = { ...es2018
+};
+const es2020 = { ...es2019,
+  BigInt: false,
+  BigInt64Array: false,
+  BigUint64Array: false,
+  globalThis: false
+};
+const es2021 = { ...es2020,
+  AggregateError: false,
+  FinalizationRegistry: false,
+  WeakRef: false
+};
+const es2022 = { ...es2021
+}; //-----------------------------------------------------------------------------
+// Exports
+//-----------------------------------------------------------------------------
+
+module.exports = {
+  commonjs,
+  es3,
+  es5,
+  es2015,
+  es2016,
+  es2017,
+  es2018,
+  es2019,
+  es2020,
+  es2021,
+  es2022
+};
+
+/***/ }),
+/* 878 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
 const {
-  CLIEngine
-} = __webpack_require__(860);
+  ESLint
+} = __webpack_require__(879);
 
 module.exports = {
-  CLIEngine
+  ESLint
 };
 
 /***/ }),
-/* 860 */
+/* 879 */
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+/* provided dependency */ var process = __webpack_require__(494);
+/**
+ * @fileoverview Main API Class
+ * @author Kai Cataldo
+ * @author Toru Nagashima
+ */
+ //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const path = __webpack_require__(429);
+
+const fs = __webpack_require__(880);
+
+const {
+  promisify
+} = __webpack_require__(439);
+
+const {
+  CLIEngine,
+  getCLIEngineInternalSlots
+} = __webpack_require__(881);
+
+const BuiltinRules = __webpack_require__(545);
+
+const {
+  Legacy: {
+    ConfigOps: {
+      getRuleSeverity
+    }
+  }
+} = __webpack_require__(883);
+
+const {
+  version
+} = __webpack_require__(443); //------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/** @typedef {import("../cli-engine/cli-engine").LintReport} CLIEngineLintReport */
+
+/** @typedef {import("../shared/types").DeprecatedRuleInfo} DeprecatedRuleInfo */
+
+/** @typedef {import("../shared/types").ConfigData} ConfigData */
+
+/** @typedef {import("../shared/types").LintMessage} LintMessage */
+
+/** @typedef {import("../shared/types").Plugin} Plugin */
+
+/** @typedef {import("../shared/types").Rule} Rule */
+
+/**
+ * The main formatter object.
+ * @typedef Formatter
+ * @property {function(LintResult[]): string | Promise<string>} format format function.
+ */
+
+/**
+ * The options with which to configure the ESLint instance.
+ * @typedef {Object} ESLintOptions
+ * @property {boolean} [allowInlineConfig] Enable or disable inline configuration comments.
+ * @property {ConfigData} [baseConfig] Base config object, extended by all configs used with this instance
+ * @property {boolean} [cache] Enable result caching.
+ * @property {string} [cacheLocation] The cache file to use instead of .eslintcache.
+ * @property {"metadata" | "content"} [cacheStrategy] The strategy used to detect changed files.
+ * @property {string} [cwd] The value to use for the current working directory.
+ * @property {boolean} [errorOnUnmatchedPattern] If `false` then `ESLint#lintFiles()` doesn't throw even if no target files found. Defaults to `true`.
+ * @property {string[]} [extensions] An array of file extensions to check.
+ * @property {boolean|Function} [fix] Execute in autofix mode. If a function, should return a boolean.
+ * @property {string[]} [fixTypes] Array of rule types to apply fixes for.
+ * @property {boolean} [globInputPaths] Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
+ * @property {boolean} [ignore] False disables use of .eslintignore.
+ * @property {string} [ignorePath] The ignore file to use instead of .eslintignore.
+ * @property {ConfigData} [overrideConfig] Override config object, overrides all configs used with this instance
+ * @property {string} [overrideConfigFile] The configuration file to use.
+ * @property {Record<string,Plugin>|null} [plugins] Preloaded plugins. This is a map-like object, keys are plugin IDs and each value is implementation.
+ * @property {"error" | "warn" | "off"} [reportUnusedDisableDirectives] the severity to report unused eslint-disable directives.
+ * @property {string} [resolvePluginsRelativeTo] The folder where plugins should be resolved from, defaulting to the CWD.
+ * @property {string[]} [rulePaths] An array of directories to load custom rules from.
+ * @property {boolean} [useEslintrc] False disables looking for .eslintrc.* files.
+ */
+
+/**
+ * A rules metadata object.
+ * @typedef {Object} RulesMeta
+ * @property {string} id The plugin ID.
+ * @property {Object} definition The plugin definition.
+ */
+
+/**
+ * A linting result.
+ * @typedef {Object} LintResult
+ * @property {string} filePath The path to the file that was linted.
+ * @property {LintMessage[]} messages All of the messages for the result.
+ * @property {number} errorCount Number of errors for the result.
+ * @property {number} warningCount Number of warnings for the result.
+ * @property {number} fixableErrorCount Number of fixable errors for the result.
+ * @property {number} fixableWarningCount Number of fixable warnings for the result.
+ * @property {string} [source] The source code of the file that was linted.
+ * @property {string} [output] The source code of the file that was linted, with as many fixes applied as possible.
+ * @property {DeprecatedRuleInfo[]} usedDeprecatedRules The list of used deprecated rules.
+ */
+
+/**
+ * Private members for the `ESLint` instance.
+ * @typedef {Object} ESLintPrivateMembers
+ * @property {CLIEngine} cliEngine The wrapped CLIEngine instance.
+ * @property {ESLintOptions} options The options used to instantiate the ESLint instance.
+ */
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+
+const writeFile = promisify(fs.writeFile);
+/**
+ * The map with which to store private class members.
+ * @type {WeakMap<ESLint, ESLintPrivateMembers>}
+ */
+
+const privateMembersMap = new WeakMap();
+/**
+ * Check if a given value is a non-empty string or not.
+ * @param {any} x The value to check.
+ * @returns {boolean} `true` if `x` is a non-empty string.
+ */
+
+function isNonEmptyString(x) {
+  return typeof x === "string" && x.trim() !== "";
+}
+/**
+ * Check if a given value is an array of non-empty stringss or not.
+ * @param {any} x The value to check.
+ * @returns {boolean} `true` if `x` is an array of non-empty stringss.
+ */
+
+
+function isArrayOfNonEmptyString(x) {
+  return Array.isArray(x) && x.every(isNonEmptyString);
+}
+/**
+ * Check if a given value is a valid fix type or not.
+ * @param {any} x The value to check.
+ * @returns {boolean} `true` if `x` is valid fix type.
+ */
+
+
+function isFixType(x) {
+  return x === "directive" || x === "problem" || x === "suggestion" || x === "layout";
+}
+/**
+ * Check if a given value is an array of fix types or not.
+ * @param {any} x The value to check.
+ * @returns {boolean} `true` if `x` is an array of fix types.
+ */
+
+
+function isFixTypeArray(x) {
+  return Array.isArray(x) && x.every(isFixType);
+}
+/**
+ * The error for invalid options.
+ */
+
+
+class ESLintInvalidOptionsError extends Error {
+  constructor(messages) {
+    super("Invalid Options:\n- ".concat(messages.join("\n- ")));
+    this.code = "ESLINT_INVALID_OPTIONS";
+    Error.captureStackTrace(this, ESLintInvalidOptionsError);
+  }
+
+}
+/**
+ * Validates and normalizes options for the wrapped CLIEngine instance.
+ * @param {ESLintOptions} options The options to process.
+ * @throws {ESLintInvalidOptionsError} If of any of a variety of type errors.
+ * @returns {ESLintOptions} The normalized options.
+ */
+
+
+function processOptions(_ref) {
+  let {
+    allowInlineConfig = true,
+    // ← we cannot use `overrideConfig.noInlineConfig` instead because `allowInlineConfig` has side-effect that suppress warnings that show inline configs are ignored.
+    baseConfig = null,
+    cache = false,
+    cacheLocation = ".eslintcache",
+    cacheStrategy = "metadata",
+    cwd = process.cwd(),
+    errorOnUnmatchedPattern = true,
+    extensions = null,
+    // ← should be null by default because if it's an array then it suppresses RFC20 feature.
+    fix = false,
+    fixTypes = null,
+    // ← should be null by default because if it's an array then it suppresses rules that don't have the `meta.type` property.
+    globInputPaths = true,
+    ignore = true,
+    ignorePath = null,
+    // ← should be null by default because if it's a string then it may throw ENOENT.
+    overrideConfig = null,
+    overrideConfigFile = null,
+    plugins = {},
+    reportUnusedDisableDirectives = null,
+    // ← should be null by default because if it's a string then it overrides the 'reportUnusedDisableDirectives' setting in config files. And we cannot use `overrideConfig.reportUnusedDisableDirectives` instead because we cannot configure the `error` severity with that.
+    resolvePluginsRelativeTo = null,
+    // ← should be null by default because if it's a string then it suppresses RFC47 feature.
+    rulePaths = [],
+    useEslintrc = true,
+    ...unknownOptions
+  } = _ref;
+  const errors = [];
+  const unknownOptionKeys = Object.keys(unknownOptions);
+
+  if (unknownOptionKeys.length >= 1) {
+    errors.push("Unknown options: ".concat(unknownOptionKeys.join(", ")));
+
+    if (unknownOptionKeys.includes("cacheFile")) {
+      errors.push("'cacheFile' has been removed. Please use the 'cacheLocation' option instead.");
+    }
+
+    if (unknownOptionKeys.includes("configFile")) {
+      errors.push("'configFile' has been removed. Please use the 'overrideConfigFile' option instead.");
+    }
+
+    if (unknownOptionKeys.includes("envs")) {
+      errors.push("'envs' has been removed. Please use the 'overrideConfig.env' option instead.");
+    }
+
+    if (unknownOptionKeys.includes("globals")) {
+      errors.push("'globals' has been removed. Please use the 'overrideConfig.globals' option instead.");
+    }
+
+    if (unknownOptionKeys.includes("ignorePattern")) {
+      errors.push("'ignorePattern' has been removed. Please use the 'overrideConfig.ignorePatterns' option instead.");
+    }
+
+    if (unknownOptionKeys.includes("parser")) {
+      errors.push("'parser' has been removed. Please use the 'overrideConfig.parser' option instead.");
+    }
+
+    if (unknownOptionKeys.includes("parserOptions")) {
+      errors.push("'parserOptions' has been removed. Please use the 'overrideConfig.parserOptions' option instead.");
+    }
+
+    if (unknownOptionKeys.includes("rules")) {
+      errors.push("'rules' has been removed. Please use the 'overrideConfig.rules' option instead.");
+    }
+  }
+
+  if (typeof allowInlineConfig !== "boolean") {
+    errors.push("'allowInlineConfig' must be a boolean.");
+  }
+
+  if (typeof baseConfig !== "object") {
+    errors.push("'baseConfig' must be an object or null.");
+  }
+
+  if (typeof cache !== "boolean") {
+    errors.push("'cache' must be a boolean.");
+  }
+
+  if (!isNonEmptyString(cacheLocation)) {
+    errors.push("'cacheLocation' must be a non-empty string.");
+  }
+
+  if (cacheStrategy !== "metadata" && cacheStrategy !== "content") {
+    errors.push("'cacheStrategy' must be any of \"metadata\", \"content\".");
+  }
+
+  if (!isNonEmptyString(cwd) || !path.isAbsolute(cwd)) {
+    errors.push("'cwd' must be an absolute path.");
+  }
+
+  if (typeof errorOnUnmatchedPattern !== "boolean") {
+    errors.push("'errorOnUnmatchedPattern' must be a boolean.");
+  }
+
+  if (!isArrayOfNonEmptyString(extensions) && extensions !== null) {
+    errors.push("'extensions' must be an array of non-empty strings or null.");
+  }
+
+  if (typeof fix !== "boolean" && typeof fix !== "function") {
+    errors.push("'fix' must be a boolean or a function.");
+  }
+
+  if (fixTypes !== null && !isFixTypeArray(fixTypes)) {
+    errors.push("'fixTypes' must be an array of any of \"directive\", \"problem\", \"suggestion\", and \"layout\".");
+  }
+
+  if (typeof globInputPaths !== "boolean") {
+    errors.push("'globInputPaths' must be a boolean.");
+  }
+
+  if (typeof ignore !== "boolean") {
+    errors.push("'ignore' must be a boolean.");
+  }
+
+  if (!isNonEmptyString(ignorePath) && ignorePath !== null) {
+    errors.push("'ignorePath' must be a non-empty string or null.");
+  }
+
+  if (typeof overrideConfig !== "object") {
+    errors.push("'overrideConfig' must be an object or null.");
+  }
+
+  if (!isNonEmptyString(overrideConfigFile) && overrideConfigFile !== null) {
+    errors.push("'overrideConfigFile' must be a non-empty string or null.");
+  }
+
+  if (typeof plugins !== "object") {
+    errors.push("'plugins' must be an object or null.");
+  } else if (plugins !== null && Object.keys(plugins).includes("")) {
+    errors.push("'plugins' must not include an empty string.");
+  }
+
+  if (Array.isArray(plugins)) {
+    errors.push("'plugins' doesn't add plugins to configuration to load. Please use the 'overrideConfig.plugins' option instead.");
+  }
+
+  if (reportUnusedDisableDirectives !== "error" && reportUnusedDisableDirectives !== "warn" && reportUnusedDisableDirectives !== "off" && reportUnusedDisableDirectives !== null) {
+    errors.push("'reportUnusedDisableDirectives' must be any of \"error\", \"warn\", \"off\", and null.");
+  }
+
+  if (!isNonEmptyString(resolvePluginsRelativeTo) && resolvePluginsRelativeTo !== null) {
+    errors.push("'resolvePluginsRelativeTo' must be a non-empty string or null.");
+  }
+
+  if (!isArrayOfNonEmptyString(rulePaths)) {
+    errors.push("'rulePaths' must be an array of non-empty strings.");
+  }
+
+  if (typeof useEslintrc !== "boolean") {
+    errors.push("'useEslintrc' must be a boolean.");
+  }
+
+  if (errors.length > 0) {
+    throw new ESLintInvalidOptionsError(errors);
+  }
+
+  return {
+    allowInlineConfig,
+    baseConfig,
+    cache,
+    cacheLocation,
+    cacheStrategy,
+    configFile: overrideConfigFile,
+    cwd,
+    errorOnUnmatchedPattern,
+    extensions,
+    fix,
+    fixTypes,
+    globInputPaths,
+    ignore,
+    ignorePath,
+    reportUnusedDisableDirectives,
+    resolvePluginsRelativeTo,
+    rulePaths,
+    useEslintrc
+  };
+}
+/**
+ * Check if a value has one or more properties and that value is not undefined.
+ * @param {any} obj The value to check.
+ * @returns {boolean} `true` if `obj` has one or more properties that that value is not undefined.
+ */
+
+
+function hasDefinedProperty(obj) {
+  if (typeof obj === "object" && obj !== null) {
+    for (const key in obj) {
+      if (typeof obj[key] !== "undefined") {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+/**
+ * Create rulesMeta object.
+ * @param {Map<string,Rule>} rules a map of rules from which to generate the object.
+ * @returns {Object} metadata for all enabled rules.
+ */
+
+
+function createRulesMeta(rules) {
+  return Array.from(rules).reduce((retVal, _ref2) => {
+    let [id, rule] = _ref2;
+    retVal[id] = rule.meta;
+    return retVal;
+  }, {});
+}
+/** @type {WeakMap<ExtractedConfig, DeprecatedRuleInfo[]>} */
+
+
+const usedDeprecatedRulesCache = new WeakMap();
+/**
+ * Create used deprecated rule list.
+ * @param {CLIEngine} cliEngine The CLIEngine instance.
+ * @param {string} maybeFilePath The absolute path to a lint target file or `"<text>"`.
+ * @returns {DeprecatedRuleInfo[]} The used deprecated rule list.
+ */
+
+function getOrFindUsedDeprecatedRules(cliEngine, maybeFilePath) {
+  const {
+    configArrayFactory,
+    options: {
+      cwd
+    }
+  } = getCLIEngineInternalSlots(cliEngine);
+  const filePath = path.isAbsolute(maybeFilePath) ? maybeFilePath : path.join(cwd, "__placeholder__.js");
+  const configArray = configArrayFactory.getConfigArrayForFile(filePath);
+  const config = configArray.extractConfig(filePath); // Most files use the same config, so cache it.
+
+  if (!usedDeprecatedRulesCache.has(config)) {
+    const pluginRules = configArray.pluginRules;
+    const retv = [];
+
+    for (const [ruleId, ruleConf] of Object.entries(config.rules)) {
+      if (getRuleSeverity(ruleConf) === 0) {
+        continue;
+      }
+
+      const rule = pluginRules.get(ruleId) || BuiltinRules.get(ruleId);
+      const meta = rule && rule.meta;
+
+      if (meta && meta.deprecated) {
+        retv.push({
+          ruleId,
+          replacedBy: meta.replacedBy || []
+        });
+      }
+    }
+
+    usedDeprecatedRulesCache.set(config, Object.freeze(retv));
+  }
+
+  return usedDeprecatedRulesCache.get(config);
+}
+/**
+ * Processes the linting results generated by a CLIEngine linting report to
+ * match the ESLint class's API.
+ * @param {CLIEngine} cliEngine The CLIEngine instance.
+ * @param {CLIEngineLintReport} report The CLIEngine linting report to process.
+ * @returns {LintResult[]} The processed linting results.
+ */
+
+
+function processCLIEngineLintReport(cliEngine, _ref3) {
+  let {
+    results
+  } = _ref3;
+  const descriptor = {
+    configurable: true,
+    enumerable: true,
+
+    get() {
+      return getOrFindUsedDeprecatedRules(cliEngine, this.filePath);
+    }
+
+  };
+
+  for (const result of results) {
+    Object.defineProperty(result, "usedDeprecatedRules", descriptor);
+  }
+
+  return results;
+}
+/**
+ * An Array.prototype.sort() compatible compare function to order results by their file path.
+ * @param {LintResult} a The first lint result.
+ * @param {LintResult} b The second lint result.
+ * @returns {number} An integer representing the order in which the two results should occur.
+ */
+
+
+function compareResultsByFilePath(a, b) {
+  if (a.filePath < b.filePath) {
+    return -1;
+  }
+
+  if (a.filePath > b.filePath) {
+    return 1;
+  }
+
+  return 0;
+}
+/**
+ * Main API.
+ */
+
+
+class ESLint {
+  /**
+   * Creates a new instance of the main ESLint API.
+   * @param {ESLintOptions} options The options for this instance.
+   */
+  constructor() {
+    let options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    const processedOptions = processOptions(options);
+    const cliEngine = new CLIEngine(processedOptions, {
+      preloadedPlugins: options.plugins
+    });
+    const {
+      configArrayFactory,
+      lastConfigArrays
+    } = getCLIEngineInternalSlots(cliEngine);
+    let updated = false;
+    /*
+     * Address `overrideConfig` to set override config.
+     * Operate the `configArrayFactory` internal slot directly because this
+     * functionality doesn't exist as the public API of CLIEngine.
+     */
+
+    if (hasDefinedProperty(options.overrideConfig)) {
+      configArrayFactory.setOverrideConfig(options.overrideConfig);
+      updated = true;
+    } // Update caches.
+
+
+    if (updated) {
+      configArrayFactory.clearCache();
+      lastConfigArrays[0] = configArrayFactory.getConfigArrayForFile();
+    } // Initialize private properties.
+
+
+    privateMembersMap.set(this, {
+      cliEngine,
+      options: processedOptions
+    });
+  }
+  /**
+   * The version text.
+   * @type {string}
+   */
+
+
+  static get version() {
+    return version;
+  }
+  /**
+   * Outputs fixes from the given results to files.
+   * @param {LintResult[]} results The lint results.
+   * @returns {Promise<void>} Returns a promise that is used to track side effects.
+   */
+
+
+  static async outputFixes(results) {
+    if (!Array.isArray(results)) {
+      throw new Error("'results' must be an array");
+    }
+
+    await Promise.all(results.filter(result => {
+      if (typeof result !== "object" || result === null) {
+        throw new Error("'results' must include only objects");
+      }
+
+      return typeof result.output === "string" && path.isAbsolute(result.filePath);
+    }).map(r => writeFile(r.filePath, r.output)));
+  }
+  /**
+   * Returns results that only contains errors.
+   * @param {LintResult[]} results The results to filter.
+   * @returns {LintResult[]} The filtered results.
+   */
+
+
+  static getErrorResults(results) {
+    return CLIEngine.getErrorResults(results);
+  }
+  /**
+   * Returns meta objects for each rule represented in the lint results.
+   * @param {LintResult[]} results The results to fetch rules meta for.
+   * @returns {Object} A mapping of ruleIds to rule meta objects.
+   */
+
+
+  getRulesMetaForResults(results) {
+    const resultRuleIds = new Set(); // first gather all ruleIds from all results
+
+    for (const result of results) {
+      for (const {
+        ruleId
+      } of result.messages) {
+        resultRuleIds.add(ruleId);
+      }
+    } // create a map of all rules in the results
+
+
+    const {
+      cliEngine
+    } = privateMembersMap.get(this);
+    const rules = cliEngine.getRules();
+    const resultRules = new Map();
+
+    for (const [ruleId, rule] of rules) {
+      if (resultRuleIds.has(ruleId)) {
+        resultRules.set(ruleId, rule);
+      }
+    }
+
+    return createRulesMeta(resultRules);
+  }
+  /**
+   * Executes the current configuration on an array of file and directory names.
+   * @param {string[]} patterns An array of file and directory names.
+   * @returns {Promise<LintResult[]>} The results of linting the file patterns given.
+   */
+
+
+  async lintFiles(patterns) {
+    if (!isNonEmptyString(patterns) && !isArrayOfNonEmptyString(patterns)) {
+      throw new Error("'patterns' must be a non-empty string or an array of non-empty strings");
+    }
+
+    const {
+      cliEngine
+    } = privateMembersMap.get(this);
+    return processCLIEngineLintReport(cliEngine, cliEngine.executeOnFiles(patterns));
+  }
+  /**
+   * Executes the current configuration on text.
+   * @param {string} code A string of JavaScript code to lint.
+   * @param {Object} [options] The options.
+   * @param {string} [options.filePath] The path to the file of the source code.
+   * @param {boolean} [options.warnIgnored] When set to true, warn if given filePath is an ignored path.
+   * @returns {Promise<LintResult[]>} The results of linting the string of code given.
+   */
+
+
+  async lintText(code) {
+    let options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+    if (typeof code !== "string") {
+      throw new Error("'code' must be a string");
+    }
+
+    if (typeof options !== "object") {
+      throw new Error("'options' must be an object, null, or undefined");
+    }
+
+    const {
+      filePath,
+      warnIgnored = false,
+      ...unknownOptions
+    } = options || {};
+    const unknownOptionKeys = Object.keys(unknownOptions);
+
+    if (unknownOptionKeys.length > 0) {
+      throw new Error("'options' must not include the unknown option(s): ".concat(unknownOptionKeys.join(", ")));
+    }
+
+    if (filePath !== void 0 && !isNonEmptyString(filePath)) {
+      throw new Error("'options.filePath' must be a non-empty string or undefined");
+    }
+
+    if (typeof warnIgnored !== "boolean") {
+      throw new Error("'options.warnIgnored' must be a boolean or undefined");
+    }
+
+    const {
+      cliEngine
+    } = privateMembersMap.get(this);
+    return processCLIEngineLintReport(cliEngine, cliEngine.executeOnText(code, filePath, warnIgnored));
+  }
+  /**
+   * Returns the formatter representing the given formatter name.
+   * @param {string} [name] The name of the formatter to load.
+   * The following values are allowed:
+   * - `undefined` ... Load `stylish` builtin formatter.
+   * - A builtin formatter name ... Load the builtin formatter.
+   * - A thirdparty formatter name:
+   *   - `foo` → `eslint-formatter-foo`
+   *   - `@foo` → `@foo/eslint-formatter`
+   *   - `@foo/bar` → `@foo/eslint-formatter-bar`
+   * - A file path ... Load the file.
+   * @returns {Promise<Formatter>} A promise resolving to the formatter object.
+   * This promise will be rejected if the given formatter was not found or not
+   * a function.
+   */
+
+
+  async loadFormatter() {
+    let name = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "stylish";
+
+    if (typeof name !== "string") {
+      throw new Error("'name' must be a string");
+    }
+
+    const {
+      cliEngine,
+      options
+    } = privateMembersMap.get(this);
+    const formatter = cliEngine.getFormatter(name);
+
+    if (typeof formatter !== "function") {
+      throw new Error("Formatter must be a function, but got a ".concat(typeof formatter, "."));
+    }
+
+    return {
+      /**
+       * The main formatter method.
+       * @param {LintResults[]} results The lint results to format.
+       * @returns {string | Promise<string>} The formatted lint results.
+       */
+      format(results) {
+        let rulesMeta = null;
+        results.sort(compareResultsByFilePath);
+        return formatter(results, {
+          get cwd() {
+            return options.cwd;
+          },
+
+          get rulesMeta() {
+            if (!rulesMeta) {
+              rulesMeta = createRulesMeta(cliEngine.getRules());
+            }
+
+            return rulesMeta;
+          }
+
+        });
+      }
+
+    };
+  }
+  /**
+   * Returns a configuration object for the given file based on the CLI options.
+   * This is the same logic used by the ESLint CLI executable to determine
+   * configuration for each file it processes.
+   * @param {string} filePath The path of the file to retrieve a config object for.
+   * @returns {Promise<ConfigData>} A configuration object for the file.
+   */
+
+
+  async calculateConfigForFile(filePath) {
+    if (!isNonEmptyString(filePath)) {
+      throw new Error("'filePath' must be a non-empty string");
+    }
+
+    const {
+      cliEngine
+    } = privateMembersMap.get(this);
+    return cliEngine.getConfigForFile(filePath);
+  }
+  /**
+   * Checks if a given path is ignored by ESLint.
+   * @param {string} filePath The path of the file to check.
+   * @returns {Promise<boolean>} Whether or not the given path is ignored.
+   */
+
+
+  async isPathIgnored(filePath) {
+    if (!isNonEmptyString(filePath)) {
+      throw new Error("'filePath' must be a non-empty string");
+    }
+
+    const {
+      cliEngine
+    } = privateMembersMap.get(this);
+    return cliEngine.isPathIgnored(filePath);
+  }
+
+} //------------------------------------------------------------------------------
+// Public Interface
+//------------------------------------------------------------------------------
+
+
+module.exports = {
+  ESLint,
+
+  /**
+   * Get the private class members of a given ESLint instance for tests.
+   * @param {ESLint} instance The ESLint instance to get.
+   * @returns {ESLintPrivateMembers} The instance's private class members.
+   */
+  getESLintPrivateMembers(instance) {
+    return privateMembersMap.get(instance);
+  }
+
+};
+
+/***/ }),
+/* 880 */
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("fs");
+
+/***/ }),
+/* 881 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -119627,11 +124896,11 @@ module.exports = {
 // Requirements
 //------------------------------------------------------------------------------
 
-const fs = __webpack_require__(861);
+const fs = __webpack_require__(880);
 
 const path = __webpack_require__(429);
 
-const defaultOptions = __webpack_require__(862);
+const defaultOptions = __webpack_require__(882);
 
 const pkg = __webpack_require__(443);
 
@@ -119644,23 +124913,23 @@ const {
     getUsedExtractedConfigs,
     ModuleResolver
   }
-} = __webpack_require__(863);
+} = __webpack_require__(883);
 
 const {
   FileEnumerator
-} = __webpack_require__(877);
+} = __webpack_require__(893);
 
 const {
   Linter
-} = __webpack_require__(881);
+} = __webpack_require__(897);
 
 const builtInRules = __webpack_require__(545);
 
-const loadRules = __webpack_require__(882);
+const loadRules = __webpack_require__(898);
 
-const hash = __webpack_require__(884);
+const hash = __webpack_require__(900);
 
-const LintResultCache = __webpack_require__(886);
+const LintResultCache = __webpack_require__(902);
 
 const debug = __webpack_require__(496)("eslint:cli-engine");
 
@@ -120631,7 +125900,7 @@ class CLIEngine {
       }
 
       try {
-        return __webpack_require__(883)(formatterPath);
+        return __webpack_require__(899)(formatterPath);
       } catch (ex) {
         if (format === "table" || format === "codeframe") {
           ex.message = "The ".concat(format, " formatter is no longer part of core ESLint. Install it manually with `npm install -D eslint-formatter-").concat(format, "`");
@@ -120665,14 +125934,7 @@ module.exports = {
 };
 
 /***/ }),
-/* 861 */
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("fs");
-
-/***/ }),
-/* 862 */
+/* 882 */
 /***/ ((module) => {
 
 "use strict";
@@ -120709,7 +125971,7 @@ module.exports = {
 };
 
 /***/ }),
-/* 863 */
+/* 883 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
@@ -120718,20 +125980,20 @@ module.exports = {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 
-var fs = __webpack_require__(861);
+var fs = __webpack_require__(880);
 var path = __webpack_require__(429);
-var importFresh = __webpack_require__(864);
-var stripComments = __webpack_require__(870);
+var importFresh = __webpack_require__(884);
+var stripComments = __webpack_require__(890);
 var util = __webpack_require__(439);
 var Ajv = __webpack_require__(446);
 var globals = __webpack_require__(492);
-var Module = __webpack_require__(866);
+var Module = __webpack_require__(886);
 var assert = __webpack_require__(431);
 var ignore = __webpack_require__(737);
 var debugOrig = __webpack_require__(496);
-var minimatch = __webpack_require__(871);
-var os = __webpack_require__(875);
-var url = __webpack_require__(876);
+var minimatch = __webpack_require__(862);
+var os = __webpack_require__(891);
+var url = __webpack_require__(892);
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -123072,7 +128334,7 @@ class OverrideTester {
  *
  * @author Toru Nagashima <https://github.com/mysticatea>
  */
-const require$1 = Module.createRequire((typeof document === 'undefined' ? new ((__webpack_require__(876).URL))('file:' + __filename).href : (document.currentScript && document.currentScript.src || new URL('eslintrc.cjs', document.baseURI).href)));
+const require$1 = Module.createRequire((typeof document === 'undefined' ? new ((__webpack_require__(892).URL))('file:' + __filename).href : (document.currentScript && document.currentScript.src || new URL('eslintrc.cjs', document.baseURI).href)));
 
 const debug$2 = debugOrig__default["default"]("eslintrc:config-array-factory");
 
@@ -124626,7 +129888,7 @@ class CascadingConfigArrayFactory {
  * @author Nicholas C. Zakas
  */
 
-const dirname = path__default["default"].dirname(url.fileURLToPath((typeof document === 'undefined' ? new ((__webpack_require__(876).URL))('file:' + __filename).href : (document.currentScript && document.currentScript.src || new URL('eslintrc.cjs', document.baseURI).href))));
+const dirname = path__default["default"].dirname(url.fileURLToPath((typeof document === 'undefined' ? new ((__webpack_require__(892).URL))('file:' + __filename).href : (document.currentScript && document.currentScript.src || new URL('eslintrc.cjs', document.baseURI).href))));
 
 //-----------------------------------------------------------------------------
 // Helpers
@@ -124953,7 +130215,7 @@ exports.Legacy = Legacy;
 
 
 /***/ }),
-/* 864 */
+/* 884 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -124961,9 +130223,9 @@ exports.Legacy = Legacy;
 
 const path = __webpack_require__(429);
 
-const resolveFrom = __webpack_require__(865);
+const resolveFrom = __webpack_require__(885);
 
-const parentModule = __webpack_require__(867);
+const parentModule = __webpack_require__(887);
 
 module.exports = moduleId => {
   if (typeof moduleId !== 'string') {
@@ -124989,11 +130251,11 @@ module.exports = moduleId => {
 
   const parent = __webpack_require__.c[parentPath]; // If `filePath` and `parentPath` are the same, cache will already be deleted so we won't get a memory leak in next step
 
-  return parent === undefined ? __webpack_require__(869)(filePath) : parent.require(filePath); // In case cache doesn't have parent, fall back to normal require
+  return parent === undefined ? __webpack_require__(889)(filePath) : parent.require(filePath); // In case cache doesn't have parent, fall back to normal require
 };
 
 /***/ }),
-/* 865 */
+/* 885 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -125001,9 +130263,9 @@ module.exports = moduleId => {
 
 const path = __webpack_require__(429);
 
-const Module = __webpack_require__(866);
+const Module = __webpack_require__(886);
 
-const fs = __webpack_require__(861);
+const fs = __webpack_require__(880);
 
 const resolveFrom = (fromDir, moduleId, silent) => {
   if (typeof fromDir !== 'string') {
@@ -125050,20 +130312,20 @@ module.exports = (fromDir, moduleId) => resolveFrom(fromDir, moduleId);
 module.exports.silent = (fromDir, moduleId) => resolveFrom(fromDir, moduleId, true);
 
 /***/ }),
-/* 866 */
+/* 886 */
 /***/ ((module) => {
 
 "use strict";
 module.exports = require("module");
 
 /***/ }),
-/* 867 */
+/* 887 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-const callsites = __webpack_require__(868);
+const callsites = __webpack_require__(888);
 
 module.exports = filepath => {
   const stacks = callsites();
@@ -125100,7 +130362,7 @@ module.exports = filepath => {
 };
 
 /***/ }),
-/* 868 */
+/* 888 */
 /***/ ((module) => {
 
 "use strict";
@@ -125121,7 +130383,7 @@ module.exports = callsites; // TODO: Remove this for the next major release
 module.exports["default"] = callsites;
 
 /***/ }),
-/* 869 */
+/* 889 */
 /***/ ((module) => {
 
 function webpackEmptyContext(req) {
@@ -125131,11 +130393,11 @@ function webpackEmptyContext(req) {
 }
 webpackEmptyContext.keys = () => ([]);
 webpackEmptyContext.resolve = webpackEmptyContext;
-webpackEmptyContext.id = 869;
+webpackEmptyContext.id = 889;
 module.exports = webpackEmptyContext;
 
 /***/ }),
-/* 870 */
+/* 890 */
 /***/ ((module) => {
 
 "use strict";
@@ -125223,1205 +130485,21 @@ module.exports = function (jsonString) {
 };
 
 /***/ }),
-/* 871 */
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-/* provided dependency */ var console = __webpack_require__(438);
-module.exports = minimatch;
-minimatch.Minimatch = Minimatch;
-var path = {
-  sep: '/'
-};
-
-try {
-  path = __webpack_require__(429);
-} catch (er) {}
-
-var GLOBSTAR = minimatch.GLOBSTAR = Minimatch.GLOBSTAR = {};
-
-var expand = __webpack_require__(872);
-
-var plTypes = {
-  '!': {
-    open: '(?:(?!(?:',
-    close: '))[^/]*?)'
-  },
-  '?': {
-    open: '(?:',
-    close: ')?'
-  },
-  '+': {
-    open: '(?:',
-    close: ')+'
-  },
-  '*': {
-    open: '(?:',
-    close: ')*'
-  },
-  '@': {
-    open: '(?:',
-    close: ')'
-  }
-}; // any single thing other than /
-// don't need to escape / when using new RegExp()
-
-var qmark = '[^/]'; // * => any number of characters
-
-var star = qmark + '*?'; // ** when dots are allowed.  Anything goes, except .. and .
-// not (^ or / followed by one or two dots followed by $ or /),
-// followed by anything, any number of times.
-
-var twoStarDot = '(?:(?!(?:\\\/|^)(?:\\.{1,2})($|\\\/)).)*?'; // not a ^ or / followed by a dot,
-// followed by anything, any number of times.
-
-var twoStarNoDot = '(?:(?!(?:\\\/|^)\\.).)*?'; // characters that need to be escaped in RegExp.
-
-var reSpecials = charSet('().*{}+?[]^$\\!'); // "abc" -> { a:true, b:true, c:true }
-
-function charSet(s) {
-  return s.split('').reduce(function (set, c) {
-    set[c] = true;
-    return set;
-  }, {});
-} // normalizes slashes.
-
-
-var slashSplit = /\/+/;
-minimatch.filter = filter;
-
-function filter(pattern, options) {
-  options = options || {};
-  return function (p, i, list) {
-    return minimatch(p, pattern, options);
-  };
-}
-
-function ext(a, b) {
-  a = a || {};
-  b = b || {};
-  var t = {};
-  Object.keys(b).forEach(function (k) {
-    t[k] = b[k];
-  });
-  Object.keys(a).forEach(function (k) {
-    t[k] = a[k];
-  });
-  return t;
-}
-
-minimatch.defaults = function (def) {
-  if (!def || !Object.keys(def).length) return minimatch;
-  var orig = minimatch;
-
-  var m = function minimatch(p, pattern, options) {
-    return orig.minimatch(p, pattern, ext(def, options));
-  };
-
-  m.Minimatch = function Minimatch(pattern, options) {
-    return new orig.Minimatch(pattern, ext(def, options));
-  };
-
-  return m;
-};
-
-Minimatch.defaults = function (def) {
-  if (!def || !Object.keys(def).length) return Minimatch;
-  return minimatch.defaults(def).Minimatch;
-};
-
-function minimatch(p, pattern, options) {
-  if (typeof pattern !== 'string') {
-    throw new TypeError('glob pattern string required');
-  }
-
-  if (!options) options = {}; // shortcut: comments match nothing.
-
-  if (!options.nocomment && pattern.charAt(0) === '#') {
-    return false;
-  } // "" only matches ""
-
-
-  if (pattern.trim() === '') return p === '';
-  return new Minimatch(pattern, options).match(p);
-}
-
-function Minimatch(pattern, options) {
-  if (!(this instanceof Minimatch)) {
-    return new Minimatch(pattern, options);
-  }
-
-  if (typeof pattern !== 'string') {
-    throw new TypeError('glob pattern string required');
-  }
-
-  if (!options) options = {};
-  pattern = pattern.trim(); // windows support: need to use /, not \
-
-  if (path.sep !== '/') {
-    pattern = pattern.split(path.sep).join('/');
-  }
-
-  this.options = options;
-  this.set = [];
-  this.pattern = pattern;
-  this.regexp = null;
-  this.negate = false;
-  this.comment = false;
-  this.empty = false; // make the set of regexps etc.
-
-  this.make();
-}
-
-Minimatch.prototype.debug = function () {};
-
-Minimatch.prototype.make = make;
-
-function make() {
-  // don't do it more than once.
-  if (this._made) return;
-  var pattern = this.pattern;
-  var options = this.options; // empty patterns and comments match nothing.
-
-  if (!options.nocomment && pattern.charAt(0) === '#') {
-    this.comment = true;
-    return;
-  }
-
-  if (!pattern) {
-    this.empty = true;
-    return;
-  } // step 1: figure out negation, etc.
-
-
-  this.parseNegate(); // step 2: expand braces
-
-  var set = this.globSet = this.braceExpand();
-  if (options.debug) this.debug = console.error;
-  this.debug(this.pattern, set); // step 3: now we have a set, so turn each one into a series of path-portion
-  // matching patterns.
-  // These will be regexps, except in the case of "**", which is
-  // set to the GLOBSTAR object for globstar behavior,
-  // and will not contain any / characters
-
-  set = this.globParts = set.map(function (s) {
-    return s.split(slashSplit);
-  });
-  this.debug(this.pattern, set); // glob --> regexps
-
-  set = set.map(function (s, si, set) {
-    return s.map(this.parse, this);
-  }, this);
-  this.debug(this.pattern, set); // filter out everything that didn't compile properly.
-
-  set = set.filter(function (s) {
-    return s.indexOf(false) === -1;
-  });
-  this.debug(this.pattern, set);
-  this.set = set;
-}
-
-Minimatch.prototype.parseNegate = parseNegate;
-
-function parseNegate() {
-  var pattern = this.pattern;
-  var negate = false;
-  var options = this.options;
-  var negateOffset = 0;
-  if (options.nonegate) return;
-
-  for (var i = 0, l = pattern.length; i < l && pattern.charAt(i) === '!'; i++) {
-    negate = !negate;
-    negateOffset++;
-  }
-
-  if (negateOffset) this.pattern = pattern.substr(negateOffset);
-  this.negate = negate;
-} // Brace expansion:
-// a{b,c}d -> abd acd
-// a{b,}c -> abc ac
-// a{0..3}d -> a0d a1d a2d a3d
-// a{b,c{d,e}f}g -> abg acdfg acefg
-// a{b,c}d{e,f}g -> abdeg acdeg abdeg abdfg
-//
-// Invalid sets are not expanded.
-// a{2..}b -> a{2..}b
-// a{b}c -> a{b}c
-
-
-minimatch.braceExpand = function (pattern, options) {
-  return braceExpand(pattern, options);
-};
-
-Minimatch.prototype.braceExpand = braceExpand;
-
-function braceExpand(pattern, options) {
-  if (!options) {
-    if (this instanceof Minimatch) {
-      options = this.options;
-    } else {
-      options = {};
-    }
-  }
-
-  pattern = typeof pattern === 'undefined' ? this.pattern : pattern;
-
-  if (typeof pattern === 'undefined') {
-    throw new TypeError('undefined pattern');
-  }
-
-  if (options.nobrace || !pattern.match(/\{.*\}/)) {
-    // shortcut. no need to expand.
-    return [pattern];
-  }
-
-  return expand(pattern);
-} // parse a component of the expanded set.
-// At this point, no pattern may contain "/" in it
-// so we're going to return a 2d array, where each entry is the full
-// pattern, split on '/', and then turned into a regular expression.
-// A regexp is made at the end which joins each array with an
-// escaped /, and another full one which joins each regexp with |.
-//
-// Following the lead of Bash 4.1, note that "**" only has special meaning
-// when it is the *only* thing in a path portion.  Otherwise, any series
-// of * is equivalent to a single *.  Globstar behavior is enabled by
-// default, and can be disabled by setting options.noglobstar.
-
-
-Minimatch.prototype.parse = parse;
-var SUBPARSE = {};
-
-function parse(pattern, isSub) {
-  if (pattern.length > 1024 * 64) {
-    throw new TypeError('pattern is too long');
-  }
-
-  var options = this.options; // shortcuts
-
-  if (!options.noglobstar && pattern === '**') return GLOBSTAR;
-  if (pattern === '') return '';
-  var re = '';
-  var hasMagic = !!options.nocase;
-  var escaping = false; // ? => one single character
-
-  var patternListStack = [];
-  var negativeLists = [];
-  var stateChar;
-  var inClass = false;
-  var reClassStart = -1;
-  var classStart = -1; // . and .. never match anything that doesn't start with .,
-  // even when options.dot is set.
-
-  var patternStart = pattern.charAt(0) === '.' ? '' // anything
-  // not (start or / followed by . or .. followed by / or end)
-  : options.dot ? '(?!(?:^|\\\/)\\.{1,2}(?:$|\\\/))' : '(?!\\.)';
-  var self = this;
-
-  function clearStateChar() {
-    if (stateChar) {
-      // we had some state-tracking character
-      // that wasn't consumed by this pass.
-      switch (stateChar) {
-        case '*':
-          re += star;
-          hasMagic = true;
-          break;
-
-        case '?':
-          re += qmark;
-          hasMagic = true;
-          break;
-
-        default:
-          re += '\\' + stateChar;
-          break;
-      }
-
-      self.debug('clearStateChar %j %j', stateChar, re);
-      stateChar = false;
-    }
-  }
-
-  for (var i = 0, len = pattern.length, c; i < len && (c = pattern.charAt(i)); i++) {
-    this.debug('%s\t%s %s %j', pattern, i, re, c); // skip over any that are escaped.
-
-    if (escaping && reSpecials[c]) {
-      re += '\\' + c;
-      escaping = false;
-      continue;
-    }
-
-    switch (c) {
-      case '/':
-        // completely not allowed, even escaped.
-        // Should already be path-split by now.
-        return false;
-
-      case '\\':
-        clearStateChar();
-        escaping = true;
-        continue;
-      // the various stateChar values
-      // for the "extglob" stuff.
-
-      case '?':
-      case '*':
-      case '+':
-      case '@':
-      case '!':
-        this.debug('%s\t%s %s %j <-- stateChar', pattern, i, re, c); // all of those are literals inside a class, except that
-        // the glob [!a] means [^a] in regexp
-
-        if (inClass) {
-          this.debug('  in class');
-          if (c === '!' && i === classStart + 1) c = '^';
-          re += c;
-          continue;
-        } // if we already have a stateChar, then it means
-        // that there was something like ** or +? in there.
-        // Handle the stateChar, then proceed with this one.
-
-
-        self.debug('call clearStateChar %j', stateChar);
-        clearStateChar();
-        stateChar = c; // if extglob is disabled, then +(asdf|foo) isn't a thing.
-        // just clear the statechar *now*, rather than even diving into
-        // the patternList stuff.
-
-        if (options.noext) clearStateChar();
-        continue;
-
-      case '(':
-        if (inClass) {
-          re += '(';
-          continue;
-        }
-
-        if (!stateChar) {
-          re += '\\(';
-          continue;
-        }
-
-        patternListStack.push({
-          type: stateChar,
-          start: i - 1,
-          reStart: re.length,
-          open: plTypes[stateChar].open,
-          close: plTypes[stateChar].close
-        }); // negation is (?:(?!js)[^/]*)
-
-        re += stateChar === '!' ? '(?:(?!(?:' : '(?:';
-        this.debug('plType %j %j', stateChar, re);
-        stateChar = false;
-        continue;
-
-      case ')':
-        if (inClass || !patternListStack.length) {
-          re += '\\)';
-          continue;
-        }
-
-        clearStateChar();
-        hasMagic = true;
-        var pl = patternListStack.pop(); // negation is (?:(?!js)[^/]*)
-        // The others are (?:<pattern>)<type>
-
-        re += pl.close;
-
-        if (pl.type === '!') {
-          negativeLists.push(pl);
-        }
-
-        pl.reEnd = re.length;
-        continue;
-
-      case '|':
-        if (inClass || !patternListStack.length || escaping) {
-          re += '\\|';
-          escaping = false;
-          continue;
-        }
-
-        clearStateChar();
-        re += '|';
-        continue;
-      // these are mostly the same in regexp and glob
-
-      case '[':
-        // swallow any state-tracking char before the [
-        clearStateChar();
-
-        if (inClass) {
-          re += '\\' + c;
-          continue;
-        }
-
-        inClass = true;
-        classStart = i;
-        reClassStart = re.length;
-        re += c;
-        continue;
-
-      case ']':
-        //  a right bracket shall lose its special
-        //  meaning and represent itself in
-        //  a bracket expression if it occurs
-        //  first in the list.  -- POSIX.2 2.8.3.2
-        if (i === classStart + 1 || !inClass) {
-          re += '\\' + c;
-          escaping = false;
-          continue;
-        } // handle the case where we left a class open.
-        // "[z-a]" is valid, equivalent to "\[z-a\]"
-
-
-        if (inClass) {
-          // split where the last [ was, make sure we don't have
-          // an invalid re. if so, re-walk the contents of the
-          // would-be class to re-translate any characters that
-          // were passed through as-is
-          // TODO: It would probably be faster to determine this
-          // without a try/catch and a new RegExp, but it's tricky
-          // to do safely.  For now, this is safe and works.
-          var cs = pattern.substring(classStart + 1, i);
-
-          try {
-            RegExp('[' + cs + ']');
-          } catch (er) {
-            // not a valid class!
-            var sp = this.parse(cs, SUBPARSE);
-            re = re.substr(0, reClassStart) + '\\[' + sp[0] + '\\]';
-            hasMagic = hasMagic || sp[1];
-            inClass = false;
-            continue;
-          }
-        } // finish up the class.
-
-
-        hasMagic = true;
-        inClass = false;
-        re += c;
-        continue;
-
-      default:
-        // swallow any state char that wasn't consumed
-        clearStateChar();
-
-        if (escaping) {
-          // no need
-          escaping = false;
-        } else if (reSpecials[c] && !(c === '^' && inClass)) {
-          re += '\\';
-        }
-
-        re += c;
-    } // switch
-
-  } // for
-  // handle the case where we left a class open.
-  // "[abc" is valid, equivalent to "\[abc"
-
-
-  if (inClass) {
-    // split where the last [ was, and escape it
-    // this is a huge pita.  We now have to re-walk
-    // the contents of the would-be class to re-translate
-    // any characters that were passed through as-is
-    cs = pattern.substr(classStart + 1);
-    sp = this.parse(cs, SUBPARSE);
-    re = re.substr(0, reClassStart) + '\\[' + sp[0];
-    hasMagic = hasMagic || sp[1];
-  } // handle the case where we had a +( thing at the *end*
-  // of the pattern.
-  // each pattern list stack adds 3 chars, and we need to go through
-  // and escape any | chars that were passed through as-is for the regexp.
-  // Go through and escape them, taking care not to double-escape any
-  // | chars that were already escaped.
-
-
-  for (pl = patternListStack.pop(); pl; pl = patternListStack.pop()) {
-    var tail = re.slice(pl.reStart + pl.open.length);
-    this.debug('setting tail', re, pl); // maybe some even number of \, then maybe 1 \, followed by a |
-
-    tail = tail.replace(/((?:\\{2}){0,64})(\\?)\|/g, function (_, $1, $2) {
-      if (!$2) {
-        // the | isn't already escaped, so escape it.
-        $2 = '\\';
-      } // need to escape all those slashes *again*, without escaping the
-      // one that we need for escaping the | character.  As it works out,
-      // escaping an even number of slashes can be done by simply repeating
-      // it exactly after itself.  That's why this trick works.
-      //
-      // I am sorry that you have to see this.
-
-
-      return $1 + $1 + $2 + '|';
-    });
-    this.debug('tail=%j\n   %s', tail, tail, pl, re);
-    var t = pl.type === '*' ? star : pl.type === '?' ? qmark : '\\' + pl.type;
-    hasMagic = true;
-    re = re.slice(0, pl.reStart) + t + '\\(' + tail;
-  } // handle trailing things that only matter at the very end.
-
-
-  clearStateChar();
-
-  if (escaping) {
-    // trailing \\
-    re += '\\\\';
-  } // only need to apply the nodot start if the re starts with
-  // something that could conceivably capture a dot
-
-
-  var addPatternStart = false;
-
-  switch (re.charAt(0)) {
-    case '.':
-    case '[':
-    case '(':
-      addPatternStart = true;
-  } // Hack to work around lack of negative lookbehind in JS
-  // A pattern like: *.!(x).!(y|z) needs to ensure that a name
-  // like 'a.xyz.yz' doesn't match.  So, the first negative
-  // lookahead, has to look ALL the way ahead, to the end of
-  // the pattern.
-
-
-  for (var n = negativeLists.length - 1; n > -1; n--) {
-    var nl = negativeLists[n];
-    var nlBefore = re.slice(0, nl.reStart);
-    var nlFirst = re.slice(nl.reStart, nl.reEnd - 8);
-    var nlLast = re.slice(nl.reEnd - 8, nl.reEnd);
-    var nlAfter = re.slice(nl.reEnd);
-    nlLast += nlAfter; // Handle nested stuff like *(*.js|!(*.json)), where open parens
-    // mean that we should *not* include the ) in the bit that is considered
-    // "after" the negated section.
-
-    var openParensBefore = nlBefore.split('(').length - 1;
-    var cleanAfter = nlAfter;
-
-    for (i = 0; i < openParensBefore; i++) {
-      cleanAfter = cleanAfter.replace(/\)[+*?]?/, '');
-    }
-
-    nlAfter = cleanAfter;
-    var dollar = '';
-
-    if (nlAfter === '' && isSub !== SUBPARSE) {
-      dollar = '$';
-    }
-
-    var newRe = nlBefore + nlFirst + nlAfter + dollar + nlLast;
-    re = newRe;
-  } // if the re is not "" at this point, then we need to make sure
-  // it doesn't match against an empty path part.
-  // Otherwise a/* will match a/, which it should not.
-
-
-  if (re !== '' && hasMagic) {
-    re = '(?=.)' + re;
-  }
-
-  if (addPatternStart) {
-    re = patternStart + re;
-  } // parsing just a piece of a larger pattern.
-
-
-  if (isSub === SUBPARSE) {
-    return [re, hasMagic];
-  } // skip the regexp for non-magical patterns
-  // unescape anything in it, though, so that it'll be
-  // an exact match against a file etc.
-
-
-  if (!hasMagic) {
-    return globUnescape(pattern);
-  }
-
-  var flags = options.nocase ? 'i' : '';
-
-  try {
-    var regExp = new RegExp('^' + re + '$', flags);
-  } catch (er) {
-    // If it was an invalid regular expression, then it can't match
-    // anything.  This trick looks for a character after the end of
-    // the string, which is of course impossible, except in multi-line
-    // mode, but it's not a /m regex.
-    return new RegExp('$.');
-  }
-
-  regExp._glob = pattern;
-  regExp._src = re;
-  return regExp;
-}
-
-minimatch.makeRe = function (pattern, options) {
-  return new Minimatch(pattern, options || {}).makeRe();
-};
-
-Minimatch.prototype.makeRe = makeRe;
-
-function makeRe() {
-  if (this.regexp || this.regexp === false) return this.regexp; // at this point, this.set is a 2d array of partial
-  // pattern strings, or "**".
-  //
-  // It's better to use .match().  This function shouldn't
-  // be used, really, but it's pretty convenient sometimes,
-  // when you just want to work with a regex.
-
-  var set = this.set;
-
-  if (!set.length) {
-    this.regexp = false;
-    return this.regexp;
-  }
-
-  var options = this.options;
-  var twoStar = options.noglobstar ? star : options.dot ? twoStarDot : twoStarNoDot;
-  var flags = options.nocase ? 'i' : '';
-  var re = set.map(function (pattern) {
-    return pattern.map(function (p) {
-      return p === GLOBSTAR ? twoStar : typeof p === 'string' ? regExpEscape(p) : p._src;
-    }).join('\\\/');
-  }).join('|'); // must match entire pattern
-  // ending in a * or ** will make it less strict.
-
-  re = '^(?:' + re + ')$'; // can match anything, as long as it's not this.
-
-  if (this.negate) re = '^(?!' + re + ').*$';
-
-  try {
-    this.regexp = new RegExp(re, flags);
-  } catch (ex) {
-    this.regexp = false;
-  }
-
-  return this.regexp;
-}
-
-minimatch.match = function (list, pattern, options) {
-  options = options || {};
-  var mm = new Minimatch(pattern, options);
-  list = list.filter(function (f) {
-    return mm.match(f);
-  });
-
-  if (mm.options.nonull && !list.length) {
-    list.push(pattern);
-  }
-
-  return list;
-};
-
-Minimatch.prototype.match = match;
-
-function match(f, partial) {
-  this.debug('match', f, this.pattern); // short-circuit in the case of busted things.
-  // comments, etc.
-
-  if (this.comment) return false;
-  if (this.empty) return f === '';
-  if (f === '/' && partial) return true;
-  var options = this.options; // windows: need to use /, not \
-
-  if (path.sep !== '/') {
-    f = f.split(path.sep).join('/');
-  } // treat the test path as a set of pathparts.
-
-
-  f = f.split(slashSplit);
-  this.debug(this.pattern, 'split', f); // just ONE of the pattern sets in this.set needs to match
-  // in order for it to be valid.  If negating, then just one
-  // match means that we have failed.
-  // Either way, return on the first hit.
-
-  var set = this.set;
-  this.debug(this.pattern, 'set', set); // Find the basename of the path by looking for the last non-empty segment
-
-  var filename;
-  var i;
-
-  for (i = f.length - 1; i >= 0; i--) {
-    filename = f[i];
-    if (filename) break;
-  }
-
-  for (i = 0; i < set.length; i++) {
-    var pattern = set[i];
-    var file = f;
-
-    if (options.matchBase && pattern.length === 1) {
-      file = [filename];
-    }
-
-    var hit = this.matchOne(file, pattern, partial);
-
-    if (hit) {
-      if (options.flipNegate) return true;
-      return !this.negate;
-    }
-  } // didn't get any hits.  this is success if it's a negative
-  // pattern, failure otherwise.
-
-
-  if (options.flipNegate) return false;
-  return this.negate;
-} // set partial to true to test if, for example,
-// "/a/b" matches the start of "/*/b/*/d"
-// Partial means, if you run out of file before you run
-// out of pattern, then that's fine, as long as all
-// the parts match.
-
-
-Minimatch.prototype.matchOne = function (file, pattern, partial) {
-  var options = this.options;
-  this.debug('matchOne', {
-    'this': this,
-    file: file,
-    pattern: pattern
-  });
-  this.debug('matchOne', file.length, pattern.length);
-
-  for (var fi = 0, pi = 0, fl = file.length, pl = pattern.length; fi < fl && pi < pl; fi++, pi++) {
-    this.debug('matchOne loop');
-    var p = pattern[pi];
-    var f = file[fi];
-    this.debug(pattern, p, f); // should be impossible.
-    // some invalid regexp stuff in the set.
-
-    if (p === false) return false;
-
-    if (p === GLOBSTAR) {
-      this.debug('GLOBSTAR', [pattern, p, f]); // "**"
-      // a/**/b/**/c would match the following:
-      // a/b/x/y/z/c
-      // a/x/y/z/b/c
-      // a/b/x/b/x/c
-      // a/b/c
-      // To do this, take the rest of the pattern after
-      // the **, and see if it would match the file remainder.
-      // If so, return success.
-      // If not, the ** "swallows" a segment, and try again.
-      // This is recursively awful.
-      //
-      // a/**/b/**/c matching a/b/x/y/z/c
-      // - a matches a
-      // - doublestar
-      //   - matchOne(b/x/y/z/c, b/**/c)
-      //     - b matches b
-      //     - doublestar
-      //       - matchOne(x/y/z/c, c) -> no
-      //       - matchOne(y/z/c, c) -> no
-      //       - matchOne(z/c, c) -> no
-      //       - matchOne(c, c) yes, hit
-
-      var fr = fi;
-      var pr = pi + 1;
-
-      if (pr === pl) {
-        this.debug('** at the end'); // a ** at the end will just swallow the rest.
-        // We have found a match.
-        // however, it will not swallow /.x, unless
-        // options.dot is set.
-        // . and .. are *never* matched by **, for explosively
-        // exponential reasons.
-
-        for (; fi < fl; fi++) {
-          if (file[fi] === '.' || file[fi] === '..' || !options.dot && file[fi].charAt(0) === '.') return false;
-        }
-
-        return true;
-      } // ok, let's see if we can swallow whatever we can.
-
-
-      while (fr < fl) {
-        var swallowee = file[fr];
-        this.debug('\nglobstar while', file, fr, pattern, pr, swallowee); // XXX remove this slice.  Just pass the start index.
-
-        if (this.matchOne(file.slice(fr), pattern.slice(pr), partial)) {
-          this.debug('globstar found match!', fr, fl, swallowee); // found a match.
-
-          return true;
-        } else {
-          // can't swallow "." or ".." ever.
-          // can only swallow ".foo" when explicitly asked.
-          if (swallowee === '.' || swallowee === '..' || !options.dot && swallowee.charAt(0) === '.') {
-            this.debug('dot detected!', file, fr, pattern, pr);
-            break;
-          } // ** swallows a segment, and continue.
-
-
-          this.debug('globstar swallow a segment, and continue');
-          fr++;
-        }
-      } // no match was found.
-      // However, in partial mode, we can't say this is necessarily over.
-      // If there's more *pattern* left, then
-
-
-      if (partial) {
-        // ran out of file
-        this.debug('\n>>> no match, partial?', file, fr, pattern, pr);
-        if (fr === fl) return true;
-      }
-
-      return false;
-    } // something other than **
-    // non-magic patterns just have to match exactly
-    // patterns with magic have been turned into regexps.
-
-
-    var hit;
-
-    if (typeof p === 'string') {
-      if (options.nocase) {
-        hit = f.toLowerCase() === p.toLowerCase();
-      } else {
-        hit = f === p;
-      }
-
-      this.debug('string match', p, f, hit);
-    } else {
-      hit = f.match(p);
-      this.debug('pattern match', p, f, hit);
-    }
-
-    if (!hit) return false;
-  } // Note: ending in / means that we'll get a final ""
-  // at the end of the pattern.  This can only match a
-  // corresponding "" at the end of the file.
-  // If the file ends in /, then it can only match a
-  // a pattern that ends in /, unless the pattern just
-  // doesn't have any more for it. But, a/b/ should *not*
-  // match "a/b/*", even though "" matches against the
-  // [^/]*? pattern, except in partial mode, where it might
-  // simply not be reached yet.
-  // However, a/b/ should still satisfy a/*
-  // now either we fell off the end of the pattern, or we're done.
-
-
-  if (fi === fl && pi === pl) {
-    // ran out of pattern and filename at the same time.
-    // an exact hit!
-    return true;
-  } else if (fi === fl) {
-    // ran out of file, but still had pattern left.
-    // this is ok if we're doing the match as part of
-    // a glob fs traversal.
-    return partial;
-  } else if (pi === pl) {
-    // ran out of pattern, still have file left.
-    // this is only acceptable if we're on the very last
-    // empty segment of a file with a trailing slash.
-    // a/* should match a/b/
-    var emptyFileEnd = fi === fl - 1 && file[fi] === '';
-    return emptyFileEnd;
-  } // should be unreachable.
-
-
-  throw new Error('wtf?');
-}; // replace stuff like \* with *
-
-
-function globUnescape(s) {
-  return s.replace(/\\(.)/g, '$1');
-}
-
-function regExpEscape(s) {
-  return s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-}
-
-/***/ }),
-/* 872 */
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-var concatMap = __webpack_require__(873);
-
-var balanced = __webpack_require__(874);
-
-module.exports = expandTop;
-var escSlash = '\0SLASH' + Math.random() + '\0';
-var escOpen = '\0OPEN' + Math.random() + '\0';
-var escClose = '\0CLOSE' + Math.random() + '\0';
-var escComma = '\0COMMA' + Math.random() + '\0';
-var escPeriod = '\0PERIOD' + Math.random() + '\0';
-
-function numeric(str) {
-  return parseInt(str, 10) == str ? parseInt(str, 10) : str.charCodeAt(0);
-}
-
-function escapeBraces(str) {
-  return str.split('\\\\').join(escSlash).split('\\{').join(escOpen).split('\\}').join(escClose).split('\\,').join(escComma).split('\\.').join(escPeriod);
-}
-
-function unescapeBraces(str) {
-  return str.split(escSlash).join('\\').split(escOpen).join('{').split(escClose).join('}').split(escComma).join(',').split(escPeriod).join('.');
-} // Basically just str.split(","), but handling cases
-// where we have nested braced sections, which should be
-// treated as individual members, like {a,{b,c},d}
-
-
-function parseCommaParts(str) {
-  if (!str) return [''];
-  var parts = [];
-  var m = balanced('{', '}', str);
-  if (!m) return str.split(',');
-  var pre = m.pre;
-  var body = m.body;
-  var post = m.post;
-  var p = pre.split(',');
-  p[p.length - 1] += '{' + body + '}';
-  var postParts = parseCommaParts(post);
-
-  if (post.length) {
-    p[p.length - 1] += postParts.shift();
-    p.push.apply(p, postParts);
-  }
-
-  parts.push.apply(parts, p);
-  return parts;
-}
-
-function expandTop(str) {
-  if (!str) return []; // I don't know why Bash 4.3 does this, but it does.
-  // Anything starting with {} will have the first two bytes preserved
-  // but *only* at the top level, so {},a}b will not expand to anything,
-  // but a{},b}c will be expanded to [a}c,abc].
-  // One could argue that this is a bug in Bash, but since the goal of
-  // this module is to match Bash's rules, we escape a leading {}
-
-  if (str.substr(0, 2) === '{}') {
-    str = '\\{\\}' + str.substr(2);
-  }
-
-  return expand(escapeBraces(str), true).map(unescapeBraces);
-}
-
-function identity(e) {
-  return e;
-}
-
-function embrace(str) {
-  return '{' + str + '}';
-}
-
-function isPadded(el) {
-  return /^-?0\d/.test(el);
-}
-
-function lte(i, y) {
-  return i <= y;
-}
-
-function gte(i, y) {
-  return i >= y;
-}
-
-function expand(str, isTop) {
-  var expansions = [];
-  var m = balanced('{', '}', str);
-  if (!m || /\$$/.test(m.pre)) return [str];
-  var isNumericSequence = /^-?\d+\.\.-?\d+(?:\.\.-?\d+)?$/.test(m.body);
-  var isAlphaSequence = /^[a-zA-Z]\.\.[a-zA-Z](?:\.\.-?\d+)?$/.test(m.body);
-  var isSequence = isNumericSequence || isAlphaSequence;
-  var isOptions = m.body.indexOf(',') >= 0;
-
-  if (!isSequence && !isOptions) {
-    // {a},b}
-    if (m.post.match(/,.*\}/)) {
-      str = m.pre + '{' + m.body + escClose + m.post;
-      return expand(str);
-    }
-
-    return [str];
-  }
-
-  var n;
-
-  if (isSequence) {
-    n = m.body.split(/\.\./);
-  } else {
-    n = parseCommaParts(m.body);
-
-    if (n.length === 1) {
-      // x{{a,b}}y ==> x{a}y x{b}y
-      n = expand(n[0], false).map(embrace);
-
-      if (n.length === 1) {
-        var post = m.post.length ? expand(m.post, false) : [''];
-        return post.map(function (p) {
-          return m.pre + n[0] + p;
-        });
-      }
-    }
-  } // at this point, n is the parts, and we know it's not a comma set
-  // with a single entry.
-  // no need to expand pre, since it is guaranteed to be free of brace-sets
-
-
-  var pre = m.pre;
-  var post = m.post.length ? expand(m.post, false) : [''];
-  var N;
-
-  if (isSequence) {
-    var x = numeric(n[0]);
-    var y = numeric(n[1]);
-    var width = Math.max(n[0].length, n[1].length);
-    var incr = n.length == 3 ? Math.abs(numeric(n[2])) : 1;
-    var test = lte;
-    var reverse = y < x;
-
-    if (reverse) {
-      incr *= -1;
-      test = gte;
-    }
-
-    var pad = n.some(isPadded);
-    N = [];
-
-    for (var i = x; test(i, y); i += incr) {
-      var c;
-
-      if (isAlphaSequence) {
-        c = String.fromCharCode(i);
-        if (c === '\\') c = '';
-      } else {
-        c = String(i);
-
-        if (pad) {
-          var need = width - c.length;
-
-          if (need > 0) {
-            var z = new Array(need + 1).join('0');
-            if (i < 0) c = '-' + z + c.slice(1);else c = z + c;
-          }
-        }
-      }
-
-      N.push(c);
-    }
-  } else {
-    N = concatMap(n, function (el) {
-      return expand(el, false);
-    });
-  }
-
-  for (var j = 0; j < N.length; j++) {
-    for (var k = 0; k < post.length; k++) {
-      var expansion = pre + N[j] + post[k];
-      if (!isTop || isSequence || expansion) expansions.push(expansion);
-    }
-  }
-
-  return expansions;
-}
-
-/***/ }),
-/* 873 */
-/***/ ((module) => {
-
-module.exports = function (xs, fn) {
-  var res = [];
-
-  for (var i = 0; i < xs.length; i++) {
-    var x = fn(xs[i], i);
-    if (isArray(x)) res.push.apply(res, x);else res.push(x);
-  }
-
-  return res;
-};
-
-var isArray = Array.isArray || function (xs) {
-  return Object.prototype.toString.call(xs) === '[object Array]';
-};
-
-/***/ }),
-/* 874 */
-/***/ ((module) => {
-
-"use strict";
-
-
-module.exports = balanced;
-
-function balanced(a, b, str) {
-  if (a instanceof RegExp) a = maybeMatch(a, str);
-  if (b instanceof RegExp) b = maybeMatch(b, str);
-  var r = range(a, b, str);
-  return r && {
-    start: r[0],
-    end: r[1],
-    pre: str.slice(0, r[0]),
-    body: str.slice(r[0] + a.length, r[1]),
-    post: str.slice(r[1] + b.length)
-  };
-}
-
-function maybeMatch(reg, str) {
-  var m = str.match(reg);
-  return m ? m[0] : null;
-}
-
-balanced.range = range;
-
-function range(a, b, str) {
-  var begs, beg, left, right, result;
-  var ai = str.indexOf(a);
-  var bi = str.indexOf(b, ai + 1);
-  var i = ai;
-
-  if (ai >= 0 && bi > 0) {
-    if (a === b) {
-      return [ai, bi];
-    }
-
-    begs = [];
-    left = str.length;
-
-    while (i >= 0 && !result) {
-      if (i == ai) {
-        begs.push(i);
-        ai = str.indexOf(a, i + 1);
-      } else if (begs.length == 1) {
-        result = [begs.pop(), bi];
-      } else {
-        beg = begs.pop();
-
-        if (beg < left) {
-          left = beg;
-          right = bi;
-        }
-
-        bi = str.indexOf(b, i + 1);
-      }
-
-      i = ai < bi && ai >= 0 ? ai : bi;
-    }
-
-    if (begs.length) {
-      result = [left, right];
-    }
-  }
-
-  return result;
-}
-
-/***/ }),
-/* 875 */
+/* 891 */
 /***/ ((module) => {
 
 "use strict";
 module.exports = require("os");
 
 /***/ }),
-/* 876 */
+/* 892 */
 /***/ ((module) => {
 
 "use strict";
 module.exports = require("url");
 
 /***/ }),
-/* 877 */
+/* 893 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -126460,26 +130538,26 @@ module.exports = require("url");
 // Requirements
 //------------------------------------------------------------------------------
 
-const fs = __webpack_require__(861);
+const fs = __webpack_require__(880);
 
 const path = __webpack_require__(429);
 
-const getGlobParent = __webpack_require__(878);
+const getGlobParent = __webpack_require__(894);
 
-const isGlob = __webpack_require__(879);
+const isGlob = __webpack_require__(895);
 
 const escapeRegExp = __webpack_require__(525);
 
 const {
   Minimatch
-} = __webpack_require__(871);
+} = __webpack_require__(862);
 
 const {
   Legacy: {
     IgnorePattern,
     CascadingConfigArrayFactory
   }
-} = __webpack_require__(863);
+} = __webpack_require__(883);
 
 const debug = __webpack_require__(496)("eslint:file-enumerator"); //------------------------------------------------------------------------------
 // Helpers
@@ -126998,17 +131076,17 @@ module.exports = {
 };
 
 /***/ }),
-/* 878 */
+/* 894 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var isGlob = __webpack_require__(879);
+var isGlob = __webpack_require__(895);
 
 var pathPosixDirname = (__webpack_require__(429).posix.dirname);
 
-var isWin32 = (__webpack_require__(875).platform)() === 'win32';
+var isWin32 = (__webpack_require__(891).platform)() === 'win32';
 var slash = '/';
 var backslash = /\\/g;
 var escaped = /\\([!*?|[\](){}])/g;
@@ -127086,7 +131164,7 @@ function isGlobby(str) {
 }
 
 /***/ }),
-/* 879 */
+/* 895 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /*!
@@ -127095,7 +131173,7 @@ function isGlobby(str) {
  * Copyright (c) 2014-2017, Jon Schlinkert.
  * Released under the MIT License.
  */
-var isExtglob = __webpack_require__(880);
+var isExtglob = __webpack_require__(896);
 
 var chars = {
   '{': '}',
@@ -127263,7 +131341,7 @@ module.exports = function isGlob(str, options) {
 };
 
 /***/ }),
-/* 880 */
+/* 896 */
 /***/ ((module) => {
 
 /*!
@@ -127288,7 +131366,7 @@ module.exports = function isExtglob(str) {
 };
 
 /***/ }),
-/* 881 */
+/* 897 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -127310,7 +131388,7 @@ module.exports = {
 };
 
 /***/ }),
-/* 882 */
+/* 898 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -127322,7 +131400,7 @@ module.exports = {
 // Requirements
 //------------------------------------------------------------------------------
 
-const fs = __webpack_require__(861),
+const fs = __webpack_require__(880),
       path = __webpack_require__(429);
 
 const rulesDirCache = {}; //------------------------------------------------------------------------------
@@ -127349,14 +131427,14 @@ module.exports = function (relativeRulesDir, cwd) {
       return;
     }
 
-    rules[file.slice(0, -3)] = __webpack_require__(883)(path.join(rulesDir, file));
+    rules[file.slice(0, -3)] = __webpack_require__(899)(path.join(rulesDir, file));
   });
   rulesDirCache[rulesDir] = rules;
   return rules;
 };
 
 /***/ }),
-/* 883 */
+/* 899 */
 /***/ ((module) => {
 
 function webpackEmptyContext(req) {
@@ -127366,11 +131444,11 @@ function webpackEmptyContext(req) {
 }
 webpackEmptyContext.keys = () => ([]);
 webpackEmptyContext.resolve = webpackEmptyContext;
-webpackEmptyContext.id = 883;
+webpackEmptyContext.id = 899;
 module.exports = webpackEmptyContext;
 
 /***/ }),
-/* 884 */
+/* 900 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -127382,7 +131460,7 @@ module.exports = webpackEmptyContext;
 // Requirements
 //------------------------------------------------------------------------------
 
-const murmur = __webpack_require__(885); //------------------------------------------------------------------------------
+const murmur = __webpack_require__(901); //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -127406,7 +131484,7 @@ function hash(str) {
 module.exports = hash;
 
 /***/ }),
-/* 885 */
+/* 901 */
 /***/ ((module) => {
 
 /**
@@ -127555,7 +131633,7 @@ module.exports = hash;
 })();
 
 /***/ }),
-/* 886 */
+/* 902 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -127570,15 +131648,15 @@ module.exports = hash;
 
 const assert = __webpack_require__(431);
 
-const fs = __webpack_require__(861);
+const fs = __webpack_require__(880);
 
-const fileEntryCache = __webpack_require__(887);
+const fileEntryCache = __webpack_require__(903);
 
-const stringify = __webpack_require__(905);
+const stringify = __webpack_require__(921);
 
 const pkg = __webpack_require__(443);
 
-const hash = __webpack_require__(884);
+const hash = __webpack_require__(900);
 
 const debug = __webpack_require__(496)("eslint:lint-result-cache"); //-----------------------------------------------------------------------------
 // Helpers
@@ -127734,12 +131812,12 @@ class LintResultCache {
 module.exports = LintResultCache;
 
 /***/ }),
-/* 887 */
+/* 903 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 var path = __webpack_require__(429);
 
-var crypto = __webpack_require__(888);
+var crypto = __webpack_require__(904);
 
 module.exports = {
   createFromFile: function (filePath, useChecksum) {
@@ -127748,9 +131826,9 @@ module.exports = {
     return this.create(fname, dir, useChecksum);
   },
   create: function (cacheId, _path, useChecksum) {
-    var fs = __webpack_require__(861);
+    var fs = __webpack_require__(880);
 
-    var flatCache = __webpack_require__(889);
+    var flatCache = __webpack_require__(905);
 
     var cache = flatCache.load(cacheId, _path);
     var normalizedEntries = {};
@@ -128021,23 +132099,23 @@ module.exports = {
 };
 
 /***/ }),
-/* 888 */
+/* 904 */
 /***/ ((module) => {
 
 "use strict";
 module.exports = require("crypto");
 
 /***/ }),
-/* 889 */
+/* 905 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 var path = __webpack_require__(429);
 
-var fs = __webpack_require__(861);
+var fs = __webpack_require__(880);
 
-var utils = __webpack_require__(890);
+var utils = __webpack_require__(906);
 
-var del = __webpack_require__(892);
+var del = __webpack_require__(908);
 
 var writeJSON = utils.writeJSON;
 var cache = {
@@ -128230,14 +132308,14 @@ module.exports = {
 };
 
 /***/ }),
-/* 890 */
+/* 906 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var fs = __webpack_require__(861);
+var fs = __webpack_require__(880);
 
 var path = __webpack_require__(429);
 
-var flatted = __webpack_require__(891);
+var flatted = __webpack_require__(907);
 
 module.exports = {
   tryParse: function (filePath, defaultValue) {
@@ -128281,7 +132359,7 @@ module.exports = {
 };
 
 /***/ }),
-/* 891 */
+/* 907 */
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -128410,12 +132488,12 @@ const fromJSON = any => parse($stringify(any));
 exports.fromJSON = fromJSON;
 
 /***/ }),
-/* 892 */
+/* 908 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var rimraf = (__webpack_require__(893).sync);
+var rimraf = (__webpack_require__(909).sync);
 
-var fs = __webpack_require__(861);
+var fs = __webpack_require__(880);
 
 module.exports = function del(file) {
   if (fs.existsSync(file)) {
@@ -128430,7 +132508,7 @@ module.exports = function del(file) {
 };
 
 /***/ }),
-/* 893 */
+/* 909 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* provided dependency */ var process = __webpack_require__(494);
@@ -128438,12 +132516,12 @@ const assert = __webpack_require__(431);
 
 const path = __webpack_require__(429);
 
-const fs = __webpack_require__(861);
+const fs = __webpack_require__(880);
 
 let glob = undefined;
 
 try {
-  glob = __webpack_require__(894);
+  glob = __webpack_require__(910);
 } catch (_err) {// treat glob as optional.
 }
 
@@ -128724,7 +132802,7 @@ module.exports = rimraf;
 rimraf.sync = rimrafSync;
 
 /***/ }),
-/* 894 */
+/* 910 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* provided dependency */ var process = __webpack_require__(494);
@@ -128770,37 +132848,37 @@ rimraf.sync = rimrafSync;
 //   things that don't exist.
 module.exports = glob;
 
-var rp = __webpack_require__(895);
+var rp = __webpack_require__(911);
 
-var minimatch = __webpack_require__(871);
+var minimatch = __webpack_require__(862);
 
 var Minimatch = minimatch.Minimatch;
 
-var inherits = __webpack_require__(897);
+var inherits = __webpack_require__(913);
 
-var EE = (__webpack_require__(898).EventEmitter);
+var EE = (__webpack_require__(914).EventEmitter);
 
 var path = __webpack_require__(429);
 
 var assert = __webpack_require__(431);
 
-var isAbsolute = __webpack_require__(899);
+var isAbsolute = __webpack_require__(915);
 
-var globSync = __webpack_require__(900);
+var globSync = __webpack_require__(916);
 
-var common = __webpack_require__(901);
+var common = __webpack_require__(917);
 
 var setopts = common.setopts;
 var ownProp = common.ownProp;
 
-var inflight = __webpack_require__(902);
+var inflight = __webpack_require__(918);
 
 var util = __webpack_require__(439);
 
 var childrenIgnored = common.childrenIgnored;
 var isIgnored = common.isIgnored;
 
-var once = __webpack_require__(904);
+var once = __webpack_require__(920);
 
 function glob(pattern, options, cb) {
   if (typeof options === 'function') cb = options, options = {};
@@ -129426,7 +133504,7 @@ Glob.prototype._stat2 = function (f, abs, er, stat, cb) {
 };
 
 /***/ }),
-/* 895 */
+/* 911 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* provided dependency */ var process = __webpack_require__(494);
@@ -129437,14 +133515,14 @@ realpath.realpathSync = realpathSync;
 realpath.monkeypatch = monkeypatch;
 realpath.unmonkeypatch = unmonkeypatch;
 
-var fs = __webpack_require__(861);
+var fs = __webpack_require__(880);
 
 var origRealpath = fs.realpath;
 var origRealpathSync = fs.realpathSync;
 var version = process.version;
 var ok = /^v[0-5]\./.test(version);
 
-var old = __webpack_require__(896);
+var old = __webpack_require__(912);
 
 function newError(er) {
   return er && er.syscall === 'realpath' && (er.code === 'ELOOP' || er.code === 'ENOMEM' || er.code === 'ENAMETOOLONG');
@@ -129496,7 +133574,7 @@ function unmonkeypatch() {
 }
 
 /***/ }),
-/* 896 */
+/* 912 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 /* provided dependency */ var process = __webpack_require__(494);
@@ -129525,7 +133603,7 @@ var pathModule = __webpack_require__(429);
 
 var isWindows = process.platform === 'win32';
 
-var fs = __webpack_require__(861); // JavaScript implementation of realpath, ported from node pre-v6
+var fs = __webpack_require__(880); // JavaScript implementation of realpath, ported from node pre-v6
 
 
 var DEBUG = process.env.NODE_DEBUG && /fs/.test(process.env.NODE_DEBUG);
@@ -129796,7 +133874,7 @@ exports.realpath = function realpath(p, cache, cb) {
 };
 
 /***/ }),
-/* 897 */
+/* 913 */
 /***/ ((module) => {
 
 if (typeof Object.create === 'function') {
@@ -129830,14 +133908,14 @@ if (typeof Object.create === 'function') {
 }
 
 /***/ }),
-/* 898 */
+/* 914 */
 /***/ ((module) => {
 
 "use strict";
 module.exports = require("events");
 
 /***/ }),
-/* 899 */
+/* 915 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
@@ -129863,7 +133941,7 @@ module.exports.posix = posix;
 module.exports.win32 = win32;
 
 /***/ }),
-/* 900 */
+/* 916 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* provided dependency */ var console = __webpack_require__(438);
@@ -129871,13 +133949,13 @@ module.exports.win32 = win32;
 module.exports = globSync;
 globSync.GlobSync = GlobSync;
 
-var rp = __webpack_require__(895);
+var rp = __webpack_require__(911);
 
-var minimatch = __webpack_require__(871);
+var minimatch = __webpack_require__(862);
 
 var Minimatch = minimatch.Minimatch;
 
-var Glob = (__webpack_require__(894).Glob);
+var Glob = (__webpack_require__(910).Glob);
 
 var util = __webpack_require__(439);
 
@@ -129885,9 +133963,9 @@ var path = __webpack_require__(429);
 
 var assert = __webpack_require__(431);
 
-var isAbsolute = __webpack_require__(899);
+var isAbsolute = __webpack_require__(915);
 
-var common = __webpack_require__(901);
+var common = __webpack_require__(917);
 
 var setopts = common.setopts;
 var ownProp = common.ownProp;
@@ -130295,7 +134373,7 @@ GlobSync.prototype._makeAbs = function (f) {
 };
 
 /***/ }),
-/* 901 */
+/* 917 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 /* provided dependency */ var process = __webpack_require__(494);
@@ -130311,13 +134389,13 @@ function ownProp(obj, field) {
   return Object.prototype.hasOwnProperty.call(obj, field);
 }
 
-var fs = __webpack_require__(861);
+var fs = __webpack_require__(880);
 
 var path = __webpack_require__(429);
 
-var minimatch = __webpack_require__(871);
+var minimatch = __webpack_require__(862);
 
-var isAbsolute = __webpack_require__(899);
+var isAbsolute = __webpack_require__(915);
 
 var Minimatch = minimatch.Minimatch;
 
@@ -130511,15 +134589,15 @@ function childrenIgnored(self, path) {
 }
 
 /***/ }),
-/* 902 */
+/* 918 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* provided dependency */ var process = __webpack_require__(494);
-var wrappy = __webpack_require__(903);
+var wrappy = __webpack_require__(919);
 
 var reqs = Object.create(null);
 
-var once = __webpack_require__(904);
+var once = __webpack_require__(920);
 
 module.exports = wrappy(inflight);
 
@@ -130573,7 +134651,7 @@ function slice(args) {
 }
 
 /***/ }),
-/* 903 */
+/* 919 */
 /***/ ((module) => {
 
 // Returns a wrapper function that returns a wrapped callback
@@ -130612,10 +134690,10 @@ function wrappy(fn, cb) {
 }
 
 /***/ }),
-/* 904 */
+/* 920 */
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var wrappy = __webpack_require__(903);
+var wrappy = __webpack_require__(919);
 
 module.exports = wrappy(once);
 module.exports.strict = wrappy(onceStrict);
@@ -130659,7 +134737,7 @@ function onceStrict(fn) {
 }
 
 /***/ }),
-/* 905 */
+/* 921 */
 /***/ ((module) => {
 
 module.exports = function (obj, opts) {
@@ -130819,7 +134897,7 @@ var objectKeys = Object.keys || function (obj) {
 /******/ 	__webpack_require__(0);
 /******/ 	__webpack_require__(427);
 /******/ 	__webpack_require__(428);
-/******/ 	var __webpack_exports__ = __webpack_require__(859);
+/******/ 	var __webpack_exports__ = __webpack_require__(878);
 /******/ 	
 /******/ 	return __webpack_exports__;
 /******/ })()
