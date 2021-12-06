@@ -64,7 +64,7 @@ ${BUILDSRC}: ${UPSTREAM} patches
 
 .PHONY: upload
 upload: ${DEB}
-	tar cf - ${DEB} | ssh -X repoman@repo.proxmox.com -- upload --product pmg,pve --dist bullseye
+	tar cf - ${DEB} | ssh -X repoman@repo.proxmox.com -- upload --product devel --dist bullseye
 
 .PHONY: distclean
 distclean: clean
