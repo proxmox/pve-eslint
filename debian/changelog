@@ -1,3 +1,9 @@
+pve-eslint (8.4.0-2) bullseye; urgency=medium
+
+  * repair `--fix` CLI option
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 10 Dec 2021 13:18:14 +0100
+
 pve-eslint (8.4.0-1) bullseye; urgency=medium
 
   [ Proxmox Support Team ]
