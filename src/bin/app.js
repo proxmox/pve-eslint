@@ -390,7 +390,7 @@ console.log('------------------------------------------------------------');
 if (program.fix) {
     if (fixes > 0) {
 	console.log(`Writing ${color.bold(fixes)} fixed files...`);
-	eslint.ESLint.outputFixes({ results });
+	await eslint.ESLint.outputFixes(results);
 	console.log('Done');
     } else {
 	console.log("No fixable Errors/Warnings found.");
