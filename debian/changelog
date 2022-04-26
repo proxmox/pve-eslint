@@ -1,3 +1,9 @@
+pve-eslint (8.4.0-3) bullseye; urgency=medium
+
+  * switch from es2020 to es2021 as standard ecma script version to enforce
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 26 Apr 2022 11:11:42 +0200
+
 pve-eslint (8.4.0-2) bullseye; urgency=medium
 
   * repair `--fix` CLI option
