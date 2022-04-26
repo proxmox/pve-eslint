@@ -51,7 +51,7 @@ if (program.threads) {
 
 const defaultConfig = {
     parserOptions: {
-	ecmaVersion: 2020,
+	ecmaVersion: 2021,
 	ecmaFeatures: {
 	    impliedStrict: true,
 	},
@@ -59,7 +59,7 @@ const defaultConfig = {
     env: {
 	browser: true,
 	node: true,
-	es2020: true, // automatically sets ecmaVersion to 2020 and allows es2020 globals
+	es2021: true, // automatically sets ecmaVersion to 2021 and allows es2021 globals
     },
     globals: {
 	Ext: "writable",
