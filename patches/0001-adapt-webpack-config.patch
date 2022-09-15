@@ -3,19 +3,22 @@ From: Dominik Csapak <d.csapak@proxmox.com>
 Date: Thu, 2 Apr 2020 07:10:18 +0000
 Subject: [PATCH] adapt webpack config
 
-adds 'cli-engine' to build (we use it in our wrapper)
+adds 'index.js' to build (so we can package it as a module)
 and target 'node' since we will use it on the cli
+removes the polyfill plugin (makes currently problems and we want to package
+for node anyway)
 
 Signed-off-by: Dominik Csapak <d.csapak@proxmox.com>
 ---
  webpack.config.js | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/webpack.config.js b/webpack.config.js
-index a22c99b..9209159 100644
 --- a/webpack.config.js
 +++ b/webpack.config.js
-@@ -4,8 +4,9 @@ const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
+@@ -1,11 +1,11 @@
+ "use strict";
+-const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
+ 
  /** @type {import("webpack").Configuration} */
  module.exports = {
      mode: "none",
@@ -26,5 +29,13 @@ index a22c99b..9209159 100644
      },
      output: {
          filename: "[name].js",
--- 
-2.20.1
+@@ -43,9 +43,6 @@
+             }
+         ]
+     },
+-    plugins: [
+-        new NodePolyfillPlugin()
+-    ],
+     resolve: {
+         mainFields: ["browser", "main", "module"]
+     },
