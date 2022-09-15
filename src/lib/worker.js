@@ -9,7 +9,7 @@ if (!worker.isMainThread) {
 	const cli = new eslint.ESLint(data.cliOptions);
 	const report = await cli.lintFiles(data.files);
 	worker.parentPort.postMessage(report);
-    })();
+    }());
 } else {
     module.exports = async function createWorker(workerData) {
 	return new Promise((resolve, reject) => {
@@ -24,6 +24,6 @@ if (!worker.isMainThread) {
 		if (code !== 0) {reject(new Error(`Worker stopped with exit code ${code}`));}
 	    });
 	});
-    }
+    };
 }
 

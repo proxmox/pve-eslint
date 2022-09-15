@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 
-(async function(){
+(async function() {
 'use strict';
 
 const path = require('path');
 const color = require('colors');
 const program = require('commander');
-const worker = require('worker_threads');
 const eslint = require('pve-eslint');
 
 program
@@ -303,14 +302,14 @@ for (let i = 0; i < (threadCount - 1); i++) {
     let files = paths.splice(0, filesPerThread);
     promises.push(eslint.createWorker({
 	cliOptions,
-	files
+	files,
     }));
 }
 
 // the remaining paths
 promises.push(eslint.createWorker({
     cliOptions,
-    files: paths
+    files: paths,
 }));
 
 let results = (await Promise.all(promises)).flat(1);
