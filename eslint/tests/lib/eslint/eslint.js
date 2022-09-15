@@ -27,6 +27,7 @@ const {
 const hash = require("../../../lib/cli-engine/hash");
 const { unIndent, createCustomTeardown } = require("../../_utils");
 const coreRules = require("../../../lib/rules");
+const childProcess = require("child_process");
 
 //------------------------------------------------------------------------------
 // Tests
@@ -324,6 +325,7 @@ describe("ESLint", () => {
             assert.strictEqual(results[0].messages[0].output, void 0);
             assert.strictEqual(results[0].errorCount, 0);
             assert.strictEqual(results[0].warningCount, 1);
+            assert.strictEqual(results[0].fatalErrorCount, 0);
             assert.strictEqual(results[0].fixableErrorCount, 0);
             assert.strictEqual(results[0].fixableWarningCount, 0);
             assert.strictEqual(results[0].usedDeprecatedRules.length, 0);
@@ -399,6 +401,7 @@ describe("ESLint", () => {
                 {
                     filePath: getFixturePath("passing.js"),
                     messages: [],
+                    suppressedMessages: [],
                     errorCount: 0,
                     warningCount: 0,
                     fatalErrorCount: 0,
@@ -408,6 +411,55 @@ describe("ESLint", () => {
                     usedDeprecatedRules: []
                 }
             ]);
+        });
+
+        it("should use eslint:recommended rules when eslint:recommended configuration is specified", async () => {
+            eslint = new ESLint({
+                useEslintrc: false,
+                overrideConfig: {
+                    extends: ["eslint:recommended"]
+                },
+                ignore: false,
+                cwd: getFixturePath()
+            });
+            const options = { filePath: "file.js" };
+            const results = await eslint.lintText("foo ()", options);
+
+            assert.strictEqual(results.length, 1);
+            assert.strictEqual(results[0].messages.length, 1);
+            assert.strictEqual(results[0].messages[0].ruleId, "no-undef");
+            assert.strictEqual(results[0].messages[0].severity, 2);
+        });
+
+        it("should use eslint:all rules when eslint:all configuration is specified", async () => {
+            eslint = new ESLint({
+                useEslintrc: false,
+                overrideConfig: {
+                    extends: ["eslint:all"]
+                },
+                ignore: false,
+                cwd: getFixturePath()
+            });
+            const options = { filePath: "file.js" };
+            const results = await eslint.lintText("foo ()", options);
+
+            assert.strictEqual(results.length, 1);
+
+            const { messages } = results[0];
+
+            // Some rules that should report errors in the given code. Not all, as we don't want to update this test when we add new rules.
+            const expectedRules = ["no-undef", "semi", "func-call-spacing"];
+
+            expectedRules.forEach(ruleId => {
+                const messageFromRule = messages.find(message => message.ruleId === ruleId);
+
+                assert.ok(
+                    typeof messageFromRule === "object" && messageFromRule !== null, // LintMessage object
+                    `Expected a message from rule '${ruleId}'`
+                );
+                assert.strictEqual(messageFromRule.severity, 2);
+            });
+
         });
 
         it("correctly autofixes semicolon-conflicting-fixes", async () => {
@@ -600,6 +652,7 @@ describe("ESLint", () => {
                             nodeType: "Identifier"
                         }
                     ],
+                    suppressedMessages: [],
                     errorCount: 1,
                     warningCount: 0,
                     fatalErrorCount: 0,
@@ -640,6 +693,7 @@ describe("ESLint", () => {
                             column: 19
                         }
                     ],
+                    suppressedMessages: [],
                     errorCount: 1,
                     warningCount: 0,
                     fatalErrorCount: 1,
@@ -679,6 +733,7 @@ describe("ESLint", () => {
                             column: 10
                         }
                     ],
+                    suppressedMessages: [],
                     errorCount: 1,
                     warningCount: 0,
                     fatalErrorCount: 1,
@@ -767,6 +822,7 @@ describe("ESLint", () => {
                             column: 19
                         }
                     ],
+                    suppressedMessages: [],
                     errorCount: 1,
                     warningCount: 0,
                     fatalErrorCount: 1,
@@ -1044,6 +1100,7 @@ describe("ESLint", () => {
             assert.strictEqual(results.length, 1);
             assert.strictEqual(results[0].errorCount, 0);
             assert.strictEqual(results[0].warningCount, 1);
+            assert.strictEqual(results[0].fatalErrorCount, 0);
             assert.strictEqual(results[0].fixableErrorCount, 0);
             assert.strictEqual(results[0].fixableWarningCount, 0);
             assert.strictEqual(results[0].messages[0].message, expectedMsg);
@@ -1105,6 +1162,7 @@ describe("ESLint", () => {
             assert.strictEqual(results.length, 1);
             assert.strictEqual(results[0].errorCount, 0);
             assert.strictEqual(results[0].warningCount, 1);
+            assert.strictEqual(results[0].fatalErrorCount, 0);
             assert.strictEqual(results[0].fixableErrorCount, 0);
             assert.strictEqual(results[0].fixableWarningCount, 0);
             assert.strictEqual(results[0].messages[0].message, expectedMsg);
@@ -1127,6 +1185,7 @@ describe("ESLint", () => {
             assert.strictEqual(results.length, 1);
             assert.strictEqual(results[0].errorCount, 0);
             assert.strictEqual(results[0].warningCount, 1);
+            assert.strictEqual(results[0].fatalErrorCount, 0);
             assert.strictEqual(results[0].fixableErrorCount, 0);
             assert.strictEqual(results[0].fixableWarningCount, 0);
             assert.strictEqual(results[0].messages[0].message, expectedMsg);
@@ -1387,6 +1446,21 @@ describe("ESLint", () => {
             }, /All files matched by '\.\/tests\/fixtures\/cli-engine\/' are ignored\./u);
         });
 
+        // https://github.com/eslint/eslint/issues/15642
+        it("should ignore files that are ignored by patterns with escaped brackets", async () => {
+            eslint = new ESLint({
+                ignorePath: getFixturePath("ignored-paths", ".eslintignoreWithEscapedBrackets"),
+                useEslintrc: false,
+                cwd: getFixturePath("ignored-paths")
+            });
+
+            // Only `brackets/index.js` should be linted. Other files in `brackets/` should be ignored.
+            const results = await eslint.lintFiles(["brackets/*.js"]);
+
+            assert.strictEqual(results.length, 1);
+            assert.strictEqual(results[0].filePath, getFixturePath("ignored-paths", "brackets", "index.js"));
+        });
+
         it("should throw an error when all given files are ignored via ignore-pattern", async () => {
             eslint = new ESLint({
                 overrideConfig: {
@@ -1413,6 +1487,7 @@ describe("ESLint", () => {
             assert.strictEqual(results[0].messages[0].message, "File ignored because of a matching ignore pattern. Use \"--no-ignore\" to override.");
             assert.strictEqual(results[0].errorCount, 0);
             assert.strictEqual(results[0].warningCount, 1);
+            assert.strictEqual(results[0].fatalErrorCount, 0);
             assert.strictEqual(results[0].fixableErrorCount, 0);
             assert.strictEqual(results[0].fixableWarningCount, 0);
         });
@@ -1681,6 +1756,7 @@ describe("ESLint", () => {
                     {
                         filePath: fs.realpathSync(path.resolve(fixtureDir, "fixmode/multipass.js")),
                         messages: [],
+                        suppressedMessages: [],
                         errorCount: 0,
                         warningCount: 0,
                         fatalErrorCount: 0,
@@ -1692,6 +1768,7 @@ describe("ESLint", () => {
                     {
                         filePath: fs.realpathSync(path.resolve(fixtureDir, "fixmode/ok.js")),
                         messages: [],
+                        suppressedMessages: [],
                         errorCount: 0,
                         warningCount: 0,
                         fatalErrorCount: 0,
@@ -1714,6 +1791,7 @@ describe("ESLint", () => {
                                 severity: 2
                             }
                         ],
+                        suppressedMessages: [],
                         errorCount: 1,
                         warningCount: 0,
                         fatalErrorCount: 0,
@@ -1737,6 +1815,7 @@ describe("ESLint", () => {
                                 severity: 2
                             }
                         ],
+                        suppressedMessages: [],
                         errorCount: 1,
                         warningCount: 0,
                         fatalErrorCount: 0,
@@ -4613,6 +4692,28 @@ describe("ESLint", () => {
 
                 assert(!await engine.isPathIgnored(getFixturePath("ignored-paths", "negation", "unignore.js")));
             });
+
+            // https://github.com/eslint/eslint/issues/15642
+            it("should correctly handle patterns with escaped brackets", async () => {
+                const cwd = getFixturePath("ignored-paths");
+                const ignorePath = getFixturePath("ignored-paths", ".eslintignoreWithEscapedBrackets");
+                const engine = new ESLint({ ignorePath, cwd });
+
+                const subdir = "brackets";
+
+                assert(
+                    !await engine.isPathIgnored(getFixturePath("ignored-paths", subdir, "index.js")),
+                    `'${subdir}/index.js' should not be ignored`
+                );
+
+                for (const filename of ["[index.js", "index].js", "[index].js"]) {
+                    assert(
+                        await engine.isPathIgnored(getFixturePath("ignored-paths", subdir, filename)),
+                        `'${subdir}/${filename}' should be ignored`
+                    );
+                }
+
+            });
         });
 
         describe("with --ignore-path option and --ignore-pattern option", () => {
@@ -4822,6 +4923,9 @@ describe("ESLint", () => {
             assert.strictEqual(results.length, 1);
             assert.strictEqual(results[0].errorCount, 0);
             assert.strictEqual(results[0].warningCount, 1);
+            assert.strictEqual(results[0].fatalErrorCount, 0);
+            assert.strictEqual(results[0].fixableErrorCount, 0);
+            assert.strictEqual(results[0].fixableWarningCount, 0);
         });
 
         it("should return source code of file in the `source` property", async () => {
@@ -4886,6 +4990,22 @@ describe("ESLint", () => {
             assert.strictEqual(rulesMeta.semi, coreRules.get("semi").meta);
         });
 
+        it("should return one rule meta when there is a suppressed linting error", async () => {
+            const engine = new ESLint({
+                useEslintrc: false,
+                overrideConfig: {
+                    rules: {
+                        semi: 2
+                    }
+                }
+            });
+
+            const results = await engine.lintText("a // eslint-disable-line semi");
+            const rulesMeta = engine.getRulesMetaForResults(results);
+
+            assert.strictEqual(rulesMeta.semi, coreRules.get("semi").meta);
+        });
+
         it("should return multiple rule meta when there are multiple linting errors", async () => {
             const engine = new ESLint({
                 useEslintrc: false,
@@ -4905,16 +5025,16 @@ describe("ESLint", () => {
         });
 
         it("should return multiple rule meta when there are multiple linting errors from a plugin", async () => {
-            const nodePlugin = require("eslint-plugin-node");
+            const nodePlugin = require("eslint-plugin-n");
             const engine = new ESLint({
                 useEslintrc: false,
                 plugins: {
                     node: nodePlugin
                 },
                 overrideConfig: {
-                    plugins: ["node"],
+                    plugins: ["n"],
                     rules: {
-                        "node/no-new-require": 2,
+                        "n/no-new-require": 2,
                         semi: 2,
                         quotes: [2, "double"]
                     }
@@ -4927,7 +5047,7 @@ describe("ESLint", () => {
             assert.strictEqual(rulesMeta.semi, coreRules.get("semi").meta);
             assert.strictEqual(rulesMeta.quotes, coreRules.get("quotes").meta);
             assert.strictEqual(
-                rulesMeta["node/no-new-require"],
+                rulesMeta["n/no-new-require"],
                 nodePlugin.rules["no-new-require"].meta
             );
         });
@@ -5078,6 +5198,7 @@ describe("ESLint", () => {
                                 nodeType: null
                             }
                         ],
+                        suppressedMessages: [],
                         errorCount: 1,
                         warningCount: 0,
                         fatalErrorCount: 0,
@@ -5091,7 +5212,7 @@ describe("ESLint", () => {
         });
     });
 
-    describe("when retreiving version number", () => {
+    describe("when retrieving version number", () => {
         it("should return current version number", () => {
             const eslintCLI = require("../../../lib/eslint").ESLint;
             const version = eslintCLI.version;
@@ -6133,6 +6254,7 @@ describe("ESLint", () => {
                                 severity: 2
                             }
                         ],
+                        suppressedMessages: [],
                         source: "a == b",
                         usedDeprecatedRules: [],
                         warningCount: 0,
@@ -6158,6 +6280,7 @@ describe("ESLint", () => {
                         fixableErrorCount: 0,
                         fixableWarningCount: 0,
                         messages: [],
+                        suppressedMessages: [],
                         usedDeprecatedRules: [],
                         warningCount: 0,
                         fatalErrorCount: 0
@@ -6206,6 +6329,7 @@ describe("ESLint", () => {
                         fixableErrorCount: 0,
                         fixableWarningCount: 0,
                         messages: [],
+                        suppressedMessages: [],
                         usedDeprecatedRules: [],
                         warningCount: 0,
                         fatalErrorCount: 0
@@ -6242,6 +6366,7 @@ describe("ESLint", () => {
                                 severity: 2
                             }
                         ],
+                        suppressedMessages: [],
                         source: "a == b",
                         usedDeprecatedRules: [],
                         warningCount: 0,
@@ -6653,6 +6778,47 @@ describe("ESLint", () => {
                 const results = await engine.lintFiles("*/test.js");
 
                 assert.strictEqual(results.length, 2);
+            });
+        });
+    });
+
+    describe("loading rules", () => {
+        it("should not load unused core rules", done => {
+            let calledDone = false;
+
+            const cwd = getFixturePath("lazy-loading-rules");
+            const pattern = "foo.js";
+            const usedRules = ["semi"];
+
+            const forkedProcess = childProcess.fork(
+                path.join(__dirname, "../../_utils/test-lazy-loading-rules.js"),
+                [cwd, pattern, String(usedRules)]
+            );
+
+            // this is an error message
+            forkedProcess.on("message", ({ message, stack }) => {
+                if (calledDone) {
+                    return;
+                }
+                calledDone = true;
+
+                const error = new Error(message);
+
+                error.stack = stack;
+                done(error);
+            });
+
+            forkedProcess.on("exit", exitCode => {
+                if (calledDone) {
+                    return;
+                }
+                calledDone = true;
+
+                if (exitCode === 0) {
+                    done();
+                } else {
+                    done(new Error("Forked process exited with a non-zero exit code"));
+                }
             });
         });
     });

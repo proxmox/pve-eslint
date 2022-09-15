@@ -11,6 +11,9 @@
 const rule = require("../../../lib/rules/function-paren-newline");
 const { RuleTester } = require("../../../lib/rule-tester");
 
+const { unIndent } = require("../../_utils");
+const fixtureParser = require("../../fixtures/fixture-parser");
+
 
 //------------------------------------------------------------------------------
 // Tests
@@ -27,6 +30,7 @@ const ruleTester = new RuleTester({ parserOptions: { ecmaVersion: 6 } });
 ruleTester.run("function-paren-newline", rule, {
 
     valid: [
+        "new new Foo();",
 
         // multiline option (default)
         "function baz(foo, bar) {}",
@@ -583,6 +587,22 @@ ruleTester.run("function-paren-newline", rule, {
             code: "import(\n  source\n)",
             options: ["consistent"],
             parserOptions: { ecmaVersion: 2020 }
+        },
+
+        // https://github.com/eslint/eslint/issues/15091#issuecomment-975605821
+        {
+            code: unIndent`
+                const method6 = (
+                  abc: number,
+                  def: () => void,
+                ): [
+                  string,
+                  () => void
+                ] => [\`a\${abc}\`, def];
+                method6(3, () => {});
+            `,
+            options: ["multiline"],
+            parser: fixtureParser("function-paren-newline", "arrow-function-return-type")
         }
     ],
 
@@ -1157,6 +1177,18 @@ ruleTester.run("function-paren-newline", rule, {
         },
         {
             code: `
+                new new C()(
+                );
+            `,
+            output: `
+                new new C()();
+            `,
+            options: ["never"],
+            errors: [LEFT_UNEXPECTED_ERROR, RIGHT_UNEXPECTED_ERROR]
+        },
+
+        {
+            code: `
                 function baz(
                     foo,
                     bar
@@ -1437,6 +1469,31 @@ ruleTester.run("function-paren-newline", rule, {
             options: ["consistent"],
             parserOptions: { ecmaVersion: 2020 },
             errors: [RIGHT_MISSING_ERROR]
+        },
+
+        // https://github.com/eslint/eslint/issues/15091#issuecomment-975605821
+        {
+            code: unIndent`
+                const method6 = (
+                  abc: number,
+                  def: () => void,
+                ): [
+                  string,
+                  () => void
+                ] => [\`a\${abc}\`, def];
+                method6(3, () => {});
+            `,
+            output: unIndent`
+                const method6 = (abc: number,
+                  def: () => void,): [
+                  string,
+                  () => void
+                ] => [\`a\${abc}\`, def];
+                method6(3, () => {});
+            `,
+            options: ["never"],
+            parser: fixtureParser("function-paren-newline", "arrow-function-return-type"),
+            errors: [LEFT_UNEXPECTED_ERROR, RIGHT_UNEXPECTED_ERROR]
         }
     ]
 });

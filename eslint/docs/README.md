@@ -1,17 +1,27 @@
-# Documentation
+# ESLint Documentation
 
-Welcome to our documentation pages! What would you like to view?
+## Run Locally
 
-## [User Guide](user-guide)
+```shell
+npm start
+```
 
-Intended for end users of ESLint. Contains information about core rules, configuration, command line options, formatters, and integrations,
-as well as guides for migrating from earlier versions of ESLint.
+## Scripts
 
-## [Developer Guide](developer-guide)
+To update the links data file, run this from the root folder (not the `docs` folder):
 
-Intended for contributors to ESLint and people who wish to extend ESLint. Contains information about contributing to ESLint; creating custom
-rules, configurations, plugins, and formatters; and information about our architecture and Node.js API.
+```shell
+npm run docs:update-links
+```
 
-## [Maintainer Guide](maintainer-guide)
+To lint JS files, run this from the root folder (not the `docs` folder):
 
-Intended for maintainers of ESLint.
+```shell
+npm run lint:docsjs
+```
+
+To autofix JS files, run this from the root folder (not the `docs` folder):
+
+```shell
+npm run fix:docsjs
+```

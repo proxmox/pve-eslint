@@ -175,7 +175,27 @@ ruleTester.run("no-constant-condition", rule, {
         "function* foo() {while (true) {function* foo() {yield;}yield;}}",
         "function* foo() { for (let x = yield; x < 10; x++) {yield;}yield;}",
         "function* foo() { for (let x = yield; ; x++) { yield; }}",
-        "if (new Number(x) + 1 === 2) {}"
+        "if (new Number(x) + 1 === 2) {}",
+
+        // #15467
+        "if([a]==[b]) {}",
+        "if (+[...a]) {}",
+        "if (+[...[...a]]) {}",
+        "if (`${[...a]}`) {}",
+        "if (`${[a]}`) {}",
+        "if (+[a]) {}",
+        "if (0 - [a]) {}",
+        "if (1 * [a]) {}",
+
+        // Boolean function
+        "if (Boolean(a)) {}",
+        "if (Boolean(...args)) {}",
+        "if (foo.Boolean(1)) {}",
+        "function foo(Boolean) { if (Boolean(1)) {} }",
+        "const Boolean = () => {}; if (Boolean(1)) {}",
+        { code: "if (Boolean()) {}", globals: { Boolean: "off" } },
+        "const undefined = 'lol'; if (undefined) {}",
+        { code: "if (undefined) {}", globals: { undefined: "off" } }
     ],
     invalid: [
         { code: "for(;true;);", errors: [{ messageId: "unexpected", type: "Literal" }] },
@@ -262,8 +282,6 @@ ruleTester.run("no-constant-condition", rule, {
 
         // #5228 , typeof conditions
         { code: "if(typeof x){}", errors: [{ messageId: "unexpected", type: "UnaryExpression" }] },
-        { code: "if(`${typeof x}`){}", errors: [{ messageId: "unexpected", type: "TemplateLiteral" }] },
-        { code: "if(`${''}${typeof x}`){}", errors: [{ messageId: "unexpected", type: "TemplateLiteral" }] },
         { code: "if(typeof 'abc' === 'string'){}", errors: [{ messageId: "unexpected", type: "BinaryExpression" }] },
         { code: "if(a = typeof b){}", errors: [{ messageId: "unexpected", type: "AssignmentExpression" }] },
         { code: "if(a, typeof b){}", errors: [{ messageId: "unexpected", type: "SequenceExpression" }] },
@@ -359,18 +377,6 @@ ruleTester.run("no-constant-condition", rule, {
             errors: [{ messageId: "unexpected", type: "BinaryExpression" }]
         },
         {
-            code: "if([a]==[a]) {}",
-            errors: [{ messageId: "unexpected", type: "BinaryExpression" }]
-        },
-        {
-            code: "if([a] - '') {}",
-            errors: [{ messageId: "unexpected", type: "BinaryExpression" }]
-        },
-        {
-            code: "if(+[a]) {}",
-            errors: [{ messageId: "unexpected", type: "UnaryExpression" }]
-        },
-        {
             code: "if(+1) {}",
             errors: [{ messageId: "unexpected", type: "UnaryExpression" }]
         },
@@ -397,7 +403,21 @@ ruleTester.run("no-constant-condition", rule, {
         // Boxed primitives are always truthy
         { code: "if(new Boolean(foo)) {}", errors: [{ messageId: "unexpected" }] },
         { code: "if(new String(foo)) {}", errors: [{ messageId: "unexpected" }] },
-        { code: "if(new Number(foo)) {}", errors: [{ messageId: "unexpected" }] }
+        { code: "if(new Number(foo)) {}", errors: [{ messageId: "unexpected" }] },
 
+        // Spreading a constant array
+        { code: "if(`${[...['a']]}`) {}", errors: [{ messageId: "unexpected" }] },
+
+        /*
+         * undefined is always falsy (except in old browsers that let you
+         * re-assign, but that's an obscure enough edge case to not worry about)
+         */
+        { code: "if (undefined) {}", errors: [{ messageId: "unexpected" }] },
+
+        // Coercion to boolean via Boolean function
+        { code: "if (Boolean(1)) {}", errors: [{ messageId: "unexpected" }] },
+        { code: "if (Boolean()) {}", errors: [{ messageId: "unexpected" }] },
+        { code: "if (Boolean([a])) {}", errors: [{ messageId: "unexpected" }] },
+        { code: "if (Boolean(1)) { function Boolean() {}}", errors: [{ messageId: "unexpected" }] }
     ]
 });

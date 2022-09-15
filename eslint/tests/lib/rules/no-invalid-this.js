@@ -86,8 +86,7 @@ function extractPatterns(patterns, type) {
         return thisPattern;
     }));
 
-    // Flatten.
-    return [].concat(...patternsList);
+    return patternsList.flat();
 }
 
 //------------------------------------------------------------------------------
@@ -106,8 +105,8 @@ const patterns = [
         code: "console.log(this); z(x => console.log(x, this));",
         parserOptions: { ecmaVersion: 6 },
         errors,
-        valid: [NORMAL],
-        invalid: [USE_STRICT, IMPLIED_STRICT, MODULES]
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT],
+        invalid: [MODULES]
     },
     {
         code: "console.log(this); z(x => console.log(x, this));",
@@ -118,6 +117,24 @@ const patterns = [
         errors,
         valid: [NORMAL],
         invalid: [USE_STRICT, IMPLIED_STRICT, MODULES]
+    },
+    {
+        code: "() => { this }; this;",
+        parserOptions: {
+            ecmaVersion: 6
+        },
+        errors,
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT],
+        invalid: [MODULES]
+    },
+    {
+        code: "this.eval('foo');",
+        parserOptions: {
+            ecmaVersion: 6
+        },
+        errors: [{ messageId: "unexpectedThis", type: "ThisExpression" }],
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT],
+        invalid: [MODULES]
     },
 
     // IIFE.
@@ -365,8 +382,8 @@ const patterns = [
     {
         code: "obj.foo = (() => () => { console.log(this); z(x => console.log(x, this)); })();",
         parserOptions: { ecmaVersion: 6 },
-        valid: [NORMAL],
-        invalid: [USE_STRICT, IMPLIED_STRICT, MODULES],
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT],
+        invalid: [MODULES],
         errors
     },
     {
@@ -746,6 +763,18 @@ const patterns = [
 
     // Class fields.
     {
+        code: "class C { field = this }",
+        parserOptions: { ecmaVersion: 2022 },
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT, MODULES],
+        invalid: []
+    },
+    {
+        code: "class C { static field = this }",
+        parserOptions: { ecmaVersion: 2022 },
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT, MODULES],
+        invalid: []
+    },
+    {
         code: "class C { field = console.log(this); }",
         parserOptions: { ecmaVersion: 2022 },
         valid: [NORMAL, USE_STRICT, IMPLIED_STRICT, MODULES],
@@ -772,8 +801,22 @@ const patterns = [
     {
         code: "class C { [this.foo]; }",
         parserOptions: { ecmaVersion: 2022 },
-        valid: [NORMAL], // the global this in non-strict mode is OK.
-        invalid: [USE_STRICT, IMPLIED_STRICT, MODULES],
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT], // `this` is the top-level `this`
+        invalid: [MODULES],
+        errors: [{ messageId: "unexpectedThis", type: "ThisExpression" }]
+    },
+    {
+        code: "class C { foo = () => this; }",
+        parserOptions: { ecmaVersion: 2022 },
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT, MODULES],
+        invalid: [],
+        errors: [{ messageId: "unexpectedThis", type: "ThisExpression" }]
+    },
+    {
+        code: "class C { foo = () => { this }; }",
+        parserOptions: { ecmaVersion: 2022 },
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT, MODULES],
+        invalid: [],
         errors: [{ messageId: "unexpectedThis", type: "ThisExpression" }]
     },
 
@@ -818,11 +861,26 @@ const patterns = [
         errors: [{ messageId: "unexpectedThis", type: "ThisExpression" }]
     },
     {
+        code: "class C { static {} [this]; }",
+        parserOptions: { ecmaVersion: 2022 },
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT],
+        invalid: [MODULES],
+        errors: [{ messageId: "unexpectedThis", type: "ThisExpression" }]
+    },
+    {
         code: "class C { static {} [this.x]; }",
         parserOptions: { ecmaVersion: 2022 },
-        valid: [NORMAL],
-        invalid: [USE_STRICT, IMPLIED_STRICT, MODULES],
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT],
+        invalid: [MODULES],
         errors: [{ messageId: "unexpectedThis", type: "ThisExpression" }]
+    },
+
+    // in es3, "use strict" directives do not apply
+    {
+        code: "function foo() { 'use strict'; this.eval(); }",
+        parserOptions: { ecmaVersion: 3 },
+        valid: [NORMAL, USE_STRICT, IMPLIED_STRICT],
+        invalid: []
     }
 ];
 

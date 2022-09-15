@@ -16,7 +16,7 @@ const rule = require("../../../lib/rules/no-restricted-imports"),
 // Tests
 //------------------------------------------------------------------------------
 
-const ruleTester = new RuleTester({ parserOptions: { ecmaVersion: 2020, sourceType: "module" } });
+const ruleTester = new RuleTester({ parserOptions: { ecmaVersion: 2022, sourceType: "module" } });
 
 ruleTester.run("no-restricted-imports", rule, {
     valid: [
@@ -53,6 +53,16 @@ ruleTester.run("no-restricted-imports", rule, {
         {
             code: "import withPatterns from \"foo/bar\";",
             options: [{ patterns: [{ group: ["foo/*", "!foo/bar"], message: "foo is forbidden, use bar instead" }] }]
+        },
+        {
+            code: "import withPatternsCaseSensitive from 'foo';",
+            options: [{
+                patterns: [{
+                    group: ["FOO"],
+                    message: "foo is forbidden, use bar instead",
+                    caseSensitive: true
+                }]
+            }]
         },
         {
             code: "import AllowedObject from \"foo\";",
@@ -93,6 +103,34 @@ ruleTester.run("no-restricted-imports", rule, {
             }]
         },
         {
+            code: "import { 'AllowedObject' as bar } from \"foo\";",
+            options: [{
+                paths: [{
+                    name: "foo",
+                    importNames: ["DisallowedObject"],
+                    message: "Please import 'DisallowedObject' from /bar/ instead."
+                }]
+            }]
+        },
+        {
+            code: "import { ' ' as bar } from \"foo\";",
+            options: [{
+                paths: [{
+                    name: "foo",
+                    importNames: [""]
+                }]
+            }]
+        },
+        {
+            code: "import { '' as bar } from \"foo\";",
+            options: [{
+                paths: [{
+                    name: "foo",
+                    importNames: [" "]
+                }]
+            }]
+        },
+        {
             code: "import { DisallowedObject } from \"foo\";",
             options: [{
                 paths: [{
@@ -104,6 +142,16 @@ ruleTester.run("no-restricted-imports", rule, {
         },
         {
             code: "import { AllowedObject as DisallowedObject } from \"foo\";",
+            options: [{
+                paths: [{
+                    name: "foo",
+                    importNames: ["DisallowedObject"],
+                    message: "Please import 'DisallowedObject' from /bar/ instead."
+                }]
+            }]
+        },
+        {
+            code: "import { 'AllowedObject' as DisallowedObject } from \"foo\";",
             options: [{
                 paths: [{
                     name: "foo",
@@ -195,6 +243,44 @@ ruleTester.run("no-restricted-imports", rule, {
             options: [{
                 name: "bar",
                 importNames: ["DisallowedObject"]
+            }]
+        },
+        {
+            code: "export { 'AllowedObject' } from \"foo\";",
+            options: [{
+                paths: [{
+                    name: "foo",
+                    importNames: ["DisallowedObject"]
+                }]
+            }]
+        },
+        {
+            code: "export { 'AllowedObject' as DisallowedObject } from \"foo\";",
+            options: [{
+                paths: [{
+                    name: "foo",
+                    importNames: ["DisallowedObject"]
+                }]
+            }]
+        },
+        {
+            code: "import { Bar } from '../../my/relative-module';",
+            options: [{
+                patterns: [{
+                    group: ["**/my/relative-module"],
+                    importNames: ["Foo"]
+                }]
+            }]
+        },
+        {
+
+            // Default import should not be reported unless importNames includes 'default'
+            code: "import Foo from '../../my/relative-module';",
+            options: [{
+                patterns: [{
+                    group: ["**/my/relative-module"],
+                    importNames: ["Foo"]
+                }]
             }]
         }
     ],
@@ -289,6 +375,16 @@ ruleTester.run("no-restricted-imports", rule, {
             endColumn: 36
         }]
     }, {
+        code: "import withPatternsCaseInsensitive from 'foo';",
+        options: [{ patterns: [{ group: ["FOO"] }] }],
+        errors: [{
+            message: "'foo' import is restricted from being used by a pattern.",
+            type: "ImportDeclaration",
+            line: 1,
+            column: 1,
+            endColumn: 47
+        }]
+    }, {
         code: "import withGitignores from \"foo/bar\";",
         options: [{ patterns: ["foo/*", "!foo/baz"] }],
         errors: [{
@@ -343,6 +439,70 @@ ruleTester.run("no-restricted-imports", rule, {
             line: 1,
             column: 9,
             endColumn: 17
+        }]
+    }, {
+        code: "export {'foo' as b} from \"fs\";",
+        options: [{
+            paths: [{
+                name: "fs",
+                importNames: ["foo"],
+                message: "Don't import 'foo'."
+            }]
+        }],
+        errors: [{
+            message: "'foo' import from 'fs' is restricted. Don't import 'foo'.",
+            type: "ExportNamedDeclaration",
+            line: 1,
+            column: 9,
+            endColumn: 19
+        }]
+    }, {
+        code: "export {'foo'} from \"fs\";",
+        options: [{
+            paths: [{
+                name: "fs",
+                importNames: ["foo"],
+                message: "Don't import 'foo'."
+            }]
+        }],
+        errors: [{
+            message: "'foo' import from 'fs' is restricted. Don't import 'foo'.",
+            type: "ExportNamedDeclaration",
+            line: 1,
+            column: 9,
+            endColumn: 14
+        }]
+    }, {
+        code: "export {'👍'} from \"fs\";",
+        options: [{
+            paths: [{
+                name: "fs",
+                importNames: ["👍"],
+                message: "Don't import '👍'."
+            }]
+        }],
+        errors: [{
+            message: "'👍' import from 'fs' is restricted. Don't import '👍'.",
+            type: "ExportNamedDeclaration",
+            line: 1,
+            column: 9,
+            endColumn: 13
+        }]
+    }, {
+        code: "export {''} from \"fs\";",
+        options: [{
+            paths: [{
+                name: "fs",
+                importNames: [""],
+                message: "Don't import ''."
+            }]
+        }],
+        errors: [{
+            message: "'' import from 'fs' is restricted. Don't import ''.",
+            type: "ExportNamedDeclaration",
+            line: 1,
+            column: 9,
+            endColumn: 11
         }]
     }, {
         code: "export * as ns from \"fs\";",
@@ -503,6 +663,55 @@ ruleTester.run("no-restricted-imports", rule, {
             line: 1,
             column: 10,
             endColumn: 43
+        }]
+    },
+    {
+        code: "import { 'DisallowedObject' as AllowedObject } from \"foo\";",
+        options: [{
+            paths: [{
+                name: "foo",
+                importNames: ["DisallowedObject"],
+                message: "Please import 'DisallowedObject' from /bar/ instead."
+            }]
+        }],
+        errors: [{
+            message: "'DisallowedObject' import from 'foo' is restricted. Please import 'DisallowedObject' from /bar/ instead.",
+            type: "ImportDeclaration",
+            line: 1,
+            column: 10,
+            endColumn: 45
+        }]
+    },
+    {
+        code: "import { '👍' as bar } from \"foo\";",
+        options: [{
+            paths: [{
+                name: "foo",
+                importNames: ["👍"]
+            }]
+        }],
+        errors: [{
+            message: "'👍' import from 'foo' is restricted.",
+            type: "ImportDeclaration",
+            line: 1,
+            column: 10,
+            endColumn: 21
+        }]
+    },
+    {
+        code: "import { '' as bar } from \"foo\";",
+        options: [{
+            paths: [{
+                name: "foo",
+                importNames: [""]
+            }]
+        }],
+        errors: [{
+            message: "'' import from 'foo' is restricted.",
+            type: "ImportDeclaration",
+            line: 1,
+            column: 10,
+            endColumn: 19
         }]
     },
     {
@@ -893,6 +1102,138 @@ ruleTester.run("no-restricted-imports", rule, {
             line: 1,
             column: 1,
             endColumn: 41
+        }]
+    },
+    {
+        code: "import absoluteWithPatterns from '#foo/bar';",
+        options: [{ patterns: ["\\#foo"] }],
+        errors: [{
+            message: "'#foo/bar' import is restricted from being used by a pattern.",
+            type: "ImportDeclaration",
+            line: 1,
+            column: 1,
+            endColumn: 45
+        }]
+    },
+    {
+        code: "import { Foo } from '../../my/relative-module';",
+        options: [{
+            patterns: [{
+                group: ["**/my/relative-module"],
+                importNames: ["Foo"]
+            }]
+        }],
+        errors: [{
+            type: "ImportDeclaration",
+            line: 1,
+            column: 10,
+            endColumn: 13,
+            message: "'Foo' import from '../../my/relative-module' is restricted from being used by a pattern."
+        }]
+    },
+    {
+        code: "import { Foo, Bar } from '../../my/relative-module';",
+        options: [{
+            patterns: [{
+                group: ["**/my/relative-module"],
+                importNames: ["Foo", "Bar"],
+                message: "Import from @/utils instead."
+            }]
+        }],
+        errors: [{
+            type: "ImportDeclaration",
+            line: 1,
+            column: 10,
+            endColumn: 13,
+            message: "'Foo' import from '../../my/relative-module' is restricted from being used by a pattern. Import from @/utils instead."
+        }, {
+            type: "ImportDeclaration",
+            line: 1,
+            column: 15,
+            endColumn: 18,
+            message: "'Bar' import from '../../my/relative-module' is restricted from being used by a pattern. Import from @/utils instead."
+        }]
+    },
+    {
+
+        /*
+         * Star import should be reported for consistency with `paths` option (see: https://github.com/eslint/eslint/pull/16059#discussion_r908749964)
+         * For example, import * as All allows for calling/referencing the restricted import All.Foo
+         */
+        code: "import * as All from '../../my/relative-module';",
+        options: [{
+            patterns: [{
+                group: ["**/my/relative-module"],
+                importNames: ["Foo"]
+            }]
+        }],
+        errors: [{
+            message: "* import is invalid because 'Foo' from '../../my/relative-module' is restricted from being used by a pattern.",
+            type: "ImportDeclaration",
+            line: 1,
+            column: 8,
+            endColumn: 16
+        }]
+    },
+    {
+
+        /*
+         * Star import should be reported for consistency with `paths` option (see: https://github.com/eslint/eslint/pull/16059#discussion_r908749964)
+         * For example, import * as All allows for calling/referencing the restricted import All.Foo
+         */
+        code: "import * as AllWithCustomMessage from '../../my/relative-module';",
+        options: [{
+            patterns: [{
+                group: ["**/my/relative-module"],
+                importNames: ["Foo"],
+                message: "Import from @/utils instead."
+            }]
+        }],
+        errors: [{
+            message: "* import is invalid because 'Foo' from '../../my/relative-module' is restricted from being used by a pattern. Import from @/utils instead.",
+            type: "ImportDeclaration",
+            line: 1,
+            column: 8,
+            endColumn: 33
+        }]
+    },
+    {
+        code: "import def, * as ns from 'mod';",
+        options: [{
+            patterns: [{
+                group: ["mod"],
+                importNames: ["default"]
+            }]
+        }],
+        errors: [{
+            type: "ImportDeclaration",
+            line: 1,
+            column: 8,
+            endColumn: 11,
+            message: "'default' import from 'mod' is restricted from being used by a pattern."
+        },
+        {
+            type: "ImportDeclaration",
+            line: 1,
+            column: 13,
+            endColumn: 20,
+            message: "* import is invalid because 'default' from 'mod' is restricted from being used by a pattern."
+        }]
+    },
+    {
+        code: "import Foo from 'mod';",
+        options: [{
+            patterns: [{
+                group: ["mod"],
+                importNames: ["default"]
+            }]
+        }],
+        errors: [{
+            type: "ImportDeclaration",
+            line: 1,
+            column: 8,
+            endColumn: 11,
+            message: "'default' import from 'mod' is restricted from being used by a pattern."
         }]
     }
     ]

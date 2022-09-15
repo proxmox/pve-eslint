@@ -13,12 +13,14 @@ const { FlatConfigArray } = require("../../../lib/config/flat-config-array");
 const assert = require("chai").assert;
 const allConfig = require("../../../conf/eslint-all");
 const recommendedConfig = require("../../../conf/eslint-recommended");
+const stringify = require("json-stable-stringify-without-jsonify");
 
 //-----------------------------------------------------------------------------
 // Helpers
 //-----------------------------------------------------------------------------
 
 const baseConfig = {
+    files: ["**/*.js"],
     plugins: {
         "@": {
             rules: {
@@ -77,7 +79,6 @@ const baseConfig = {
  */
 function createFlatConfigArray(configs) {
     return new FlatConfigArray(configs, {
-        basePath: __dirname,
         baseConfig: [baseConfig]
     });
 }
@@ -143,8 +144,26 @@ function normalizeRuleConfig(rulesConfig) {
 
 describe("FlatConfigArray", () => {
 
+    it("should allow noniterable baseConfig objects", () => {
+        const base = {
+            languageOptions: {
+                parserOptions: {
+                    foo: true
+                }
+            }
+        };
+
+        const configs = new FlatConfigArray([], {
+            baseConfig: base
+        });
+
+        // should not throw error
+        configs.normalizeSync();
+    });
+
     it("should not reuse languageOptions.parserOptions across configs", () => {
         const base = [{
+            files: ["**/*.js"],
             languageOptions: {
                 parserOptions: {
                     foo: true
@@ -153,7 +172,6 @@ describe("FlatConfigArray", () => {
         }];
 
         const configs = new FlatConfigArray([], {
-            basePath: __dirname,
             baseConfig: base
         });
 
@@ -165,10 +183,81 @@ describe("FlatConfigArray", () => {
         assert.notStrictEqual(base[0].languageOptions.parserOptions, config.languageOptions.parserOptions, "parserOptions should be new object");
     });
 
+    describe("Serialization of configs", () => {
+        it("should convert config into normalized JSON object", () => {
+
+            const configs = new FlatConfigArray([{
+                plugins: {
+                    a: {},
+                    b: {}
+                }
+            }]);
+
+            configs.normalizeSync();
+
+            const config = configs.getConfig("foo.js");
+            const expected = {
+                plugins: ["@", "a", "b"],
+                languageOptions: {
+                    ecmaVersion: "latest",
+                    sourceType: "module",
+                    parser: "@/espree",
+                    parserOptions: {}
+                },
+                processor: void 0
+            };
+            const actual = config.toJSON();
+
+            assert.deepStrictEqual(actual, expected);
+
+            assert.strictEqual(stringify(actual), stringify(expected));
+        });
+
+        it("should throw an error when config with parser object is normalized", () => {
+
+            const configs = new FlatConfigArray([{
+                languageOptions: {
+                    parser: {
+                        parse() { /* empty */ }
+                    }
+                }
+            }]);
+
+            configs.normalizeSync();
+
+            const config = configs.getConfig("foo.js");
+
+            assert.throws(() => {
+                config.toJSON();
+            }, /Caching is not supported/u);
+
+        });
+
+        it("should throw an error when config with processor object is normalized", () => {
+
+            const configs = new FlatConfigArray([{
+                processor: {
+                    preprocess() { /* empty */ },
+                    postprocess() { /* empty */ }
+                }
+            }]);
+
+            configs.normalizeSync();
+
+            const config = configs.getConfig("foo.js");
+
+            assert.throws(() => {
+                config.toJSON();
+            }, /Caching is not supported/u);
+
+        });
+
+
+    });
 
     describe("Special configs", () => {
         it("eslint:recommended is replaced with an actual config", async () => {
-            const configs = new FlatConfigArray(["eslint:recommended"], { basePath: __dirname });
+            const configs = new FlatConfigArray(["eslint:recommended"]);
 
             await configs.normalize();
             const config = configs.getConfig("foo.js");
@@ -177,7 +266,7 @@ describe("FlatConfigArray", () => {
         });
 
         it("eslint:all is replaced with an actual config", async () => {
-            const configs = new FlatConfigArray(["eslint:all"], { basePath: __dirname });
+            const configs = new FlatConfigArray(["eslint:all"]);
 
             await configs.normalize();
             const config = configs.getConfig("foo.js");
@@ -1442,7 +1531,7 @@ describe("FlatConfigArray", () => {
                 },
                 {
                     plugins: {
-                        "foo/baz/boom": {
+                        "@foo/baz/boom": {
                             rules: {
                                 bang: {}
                             }
@@ -1451,13 +1540,13 @@ describe("FlatConfigArray", () => {
                     rules: {
                         foo: ["error"],
                         bar: 0,
-                        "foo/baz/boom/bang": "error"
+                        "@foo/baz/boom/bang": "error"
                     }
                 }
             ], {
                 plugins: {
                     ...baseConfig.plugins,
-                    "foo/baz/boom": {
+                    "@foo/baz/boom": {
                         rules: {
                             bang: {}
                         }
@@ -1466,7 +1555,7 @@ describe("FlatConfigArray", () => {
                 rules: {
                     foo: [2, "always"],
                     bar: [0],
-                    "foo/baz/boom/bang": [2]
+                    "@foo/baz/boom/bang": [2]
                 }
             }));
 
