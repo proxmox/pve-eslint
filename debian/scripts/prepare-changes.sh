@@ -2,7 +2,8 @@
 
 set -eu -o pipefail
 
-if [[ $1 =~ ^-(h|-help)$ ]]; then
+arg="${1:-}"
+if [[ $arg =~ ^-(h|-help)$ ]]; then
     echo "usage: $0 [<FROM-VERSION>]"
     echo ""
     echo "Filter out irrelevant entries (sponsors, chore, docs) from the upstream changelog."
@@ -24,8 +25,8 @@ sed -i '/ ci: /Id' "$cfn"
 sed -i '/ build: /Id' "$cfn"
 sed -i '/ESLint Jenkins/Id' "$cfn"
 
-if [[ $1 ]]; then
-   version="$1"
+if [[ $arg ]]; then
+   version="$arg"
    sed -i "/^$version -/Q" "$cfn"
    sed -i '/^\+ /!d' "$cfn"
 fi
