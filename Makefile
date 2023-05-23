@@ -64,8 +64,9 @@ $(BUILDSRC): $(UPSTREAM) patches
 	cd $@; npm run build:webpack
 
 .PHONY: upload
+upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEB)
-	tar cf - $(DEB) | ssh -X repoman@repo.proxmox.com -- upload --product devel --dist bullseye
+	tar cf - $(DEB) | ssh -X repoman@repo.proxmox.com -- upload --product devel --dist $(UPLOAD_DIST)
 
 .PHONY: distclean
 distclean: clean
