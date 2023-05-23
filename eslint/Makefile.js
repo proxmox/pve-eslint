@@ -15,6 +15,7 @@ const checker = require("npm-license"),
     fs = require("fs"),
     glob = require("glob"),
     marked = require("marked"),
+    matter = require("gray-matter"),
     markdownlint = require("markdownlint"),
     os = require("os"),
     path = require("path"),
@@ -166,7 +167,7 @@ function generateBlogPost(releaseInfo, prereleaseMajorVersion) {
  */
 function generateFormatterExamples(formatterInfo) {
     const output = ejs.render(cat("./templates/formatter-examples.md.ejs"), formatterInfo);
-    const outputDir = path.join(DOCS_SRC_DIR, "user-guide/formatters/"),
+    const outputDir = path.join(DOCS_SRC_DIR, "use/formatters/"),
         filename = path.join(outputDir, "index.md"),
         htmlFilename = path.join(outputDir, "html-formatter-example.html");
 
@@ -344,9 +345,18 @@ function generatePrerelease(prereleaseId) {
  */
 function publishRelease() {
     ReleaseOps.publishRelease();
+    const releaseInfo = JSON.parse(cat(".eslint-release-info.json"));
+    const isPreRelease = /[a-z]/u.test(releaseInfo.version);
 
-    // push to latest branch to trigger docs deploy
-    exec("git push origin HEAD:latest -f");
+    /*
+     * for a pre-release, push to the "next" branch to trigger docs deploy
+     * for a release, push to the "latest" branch to trigger docs deploy
+     */
+    if (isPreRelease) {
+        exec("git push origin HEAD:next -f");
+    } else {
+        exec("git push origin HEAD:latest -f");
+    }
 
     publishSite();
 }
@@ -446,8 +456,9 @@ function lintMarkdown(files) {
  */
 function getFormatterResults() {
     const stripAnsi = require("strip-ansi");
+    const formattersMetadata = require("./lib/cli-engine/formatters/formatters-meta.json");
 
-    const formatterFiles = fs.readdirSync("./lib/cli-engine/formatters/"),
+    const formatterFiles = fs.readdirSync("./lib/cli-engine/formatters/").filter(fileName => !fileName.includes("formatters-meta.json")),
         rules = {
             "no-else-return": "warn",
             indent: ["warn", 4],
@@ -488,7 +499,8 @@ function getFormatterResults() {
             );
 
             data.formatterResults[name] = {
-                result: stripAnsi(formattedOutput)
+                result: stripAnsi(formattedOutput),
+                description: formattersMetadata.find(formatter => formatter.name === name).description
             };
         }
         return data;
@@ -518,11 +530,11 @@ target.lint = function([fix = false] = []) {
      * when analyzing `require()` calls from CJS modules in the `docs` directory. Since our release process does not run `npm install`
      * in the `docs` directory, linting would fail and break the release. Also, working on the main `eslint` package does not require
      * installing dependencies declared in `docs/package.json`, so most contributors will not have `docs/node_modules` locally.
-     * Therefore, we add `--ignore-pattern docs` to exclude linting the `docs` directory from this command.
+     * Therefore, we add `--ignore-pattern "docs/**"` to exclude linting the `docs` directory from this command.
      * There is a separate command `target.lintDocsJS` for linting JavaScript files in the `docs` directory.
      */
     echo("Validating JavaScript files");
-    lastReturn = exec(`${ESLINT}${fix ? "--fix" : ""} . --ignore-pattern docs`);
+    lastReturn = exec(`${ESLINT}${fix ? "--fix" : ""} . --ignore-pattern "docs/**"`);
     if (lastReturn.code !== 0) {
         errors++;
     }
@@ -545,7 +557,7 @@ target.lintDocsJS = function([fix = false] = []) {
     let errors = 0;
 
     echo("Validating JavaScript files in the docs directory");
-    const lastReturn = exec(`${ESLINT}${fix ? "--fix" : ""} docs/.eleventy.js`);
+    const lastReturn = exec(`${ESLINT}${fix ? "--fix" : ""} docs`);
 
     if (lastReturn.code !== 0) {
         errors++;
@@ -629,7 +641,6 @@ target.karma = () => {
 };
 
 target.test = function() {
-    target.lint();
     target.checkRuleFiles();
     target.mocha();
     target.karma();
@@ -707,7 +718,8 @@ target.checkRuleFiles = function() {
         const basename = path.basename(filename, ".js");
         const docFilename = `docs/src/rules/${basename}.md`;
         const docText = cat(docFilename);
-        const docMarkdown = marked.lexer(docText, { gfm: true, silent: false });
+        const docTextWithoutFrontmatter = matter(String(docText)).content;
+        const docMarkdown = marked.lexer(docTextWithoutFrontmatter, { gfm: true, silent: false });
         const ruleCode = cat(filename);
         const knownHeaders = ["Rule Details", "Options", "Environments", "Examples", "Known Limitations", "When Not To Use It", "Compatibility"];
 
@@ -823,16 +835,16 @@ target.checkRuleFiles = function() {
             }
 
             // check eslint:recommended
-            const recommended = require("./conf/eslint-recommended");
+            const recommended = require("./packages/js").configs.recommended;
 
             if (ruleDef.meta.docs.recommended) {
                 if (recommended.rules[basename] !== "error") {
-                    console.error(`Missing rule from eslint:recommended (./conf/eslint-recommended.js): ${basename}. If you just made a rule recommended then add an entry for it in this file.`);
+                    console.error(`Missing rule from eslint:recommended (./packages/js/src/configs/eslint-recommended.js): ${basename}. If you just made a rule recommended then add an entry for it in this file.`);
                     errors++;
                 }
             } else {
                 if (basename in recommended.rules) {
-                    console.error(`Extra rule in eslint:recommended (./conf/eslint-recommended.js): ${basename}. If you just added a rule then don't add an entry for it in this file.`);
+                    console.error(`Extra rule in eslint:recommended (./packages/js/src/configs/eslint-recommended.js): ${basename}. If you just added a rule then don't add an entry for it in this file.`);
                     errors++;
                 }
             }

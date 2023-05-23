@@ -1412,12 +1412,14 @@ describe("RuleTester", () => {
                 RuleTester.setDefaultConfig(config);
             };
         }
-        assert.throw(setConfig());
-        assert.throw(setConfig(1));
-        assert.throw(setConfig(3.14));
-        assert.throw(setConfig("foo"));
-        assert.throw(setConfig(null));
-        assert.throw(setConfig(true));
+        const errorMessage = "RuleTester.setDefaultConfig: config must be an object";
+
+        assert.throw(setConfig(), errorMessage);
+        assert.throw(setConfig(1), errorMessage);
+        assert.throw(setConfig(3.14), errorMessage);
+        assert.throw(setConfig("foo"), errorMessage);
+        assert.throw(setConfig(null), errorMessage);
+        assert.throw(setConfig(true), errorMessage);
     });
 
     it("should pass-through the globals config to the tester then to the to rule", () => {
@@ -1496,7 +1498,7 @@ describe("RuleTester", () => {
         const usesStartEndRule = {
             create(context) {
 
-                const sourceCode = context.getSourceCode();
+                const sourceCode = context.sourceCode;
 
                 return {
                     CallExpression(node) {
@@ -2286,7 +2288,7 @@ describe("RuleTester", () => {
             assert.deepStrictEqual(
                 processStub.getCall(0).args,
                 [
-                    "\"function-style-rule\" rule is using the deprecated function-style format and will stop working in ESLint v9. Please use object-style format: https://eslint.org/docs/developer-guide/working-with-rules",
+                    "\"function-style-rule\" rule is using the deprecated function-style format and will stop working in ESLint v9. Please use object-style format: https://eslint.org/docs/latest/extend/custom-rules",
                     "DeprecationWarning"
                 ]
             );
@@ -2304,7 +2306,7 @@ describe("RuleTester", () => {
             assert.deepStrictEqual(
                 processStub.getCall(0).args,
                 [
-                    "\"rule-with-no-meta-1\" rule has options but is missing the \"meta.schema\" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/developer-guide/working-with-rules#options-schemas",
+                    "\"rule-with-no-meta-1\" rule has options but is missing the \"meta.schema\" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/latest/extend/custom-rules#options-schemas",
                     "DeprecationWarning"
                 ]
             );
@@ -2322,7 +2324,7 @@ describe("RuleTester", () => {
             assert.deepStrictEqual(
                 processStub.getCall(0).args,
                 [
-                    "\"rule-with-no-schema-1\" rule has options but is missing the \"meta.schema\" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/developer-guide/working-with-rules#options-schemas",
+                    "\"rule-with-no-schema-1\" rule has options but is missing the \"meta.schema\" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/latest/extend/custom-rules#options-schemas",
                     "DeprecationWarning"
                 ]
             );
@@ -2332,7 +2334,7 @@ describe("RuleTester", () => {
             const ruleWithUndefinedSchema = {
                 meta: {
                     type: "problem",
-                    // eslint-disable-next-line no-undefined -- intentioally added for test case
+                    // eslint-disable-next-line no-undefined -- intentionally added for test case
                     schema: undefined
                 },
                 create(context) {
@@ -2355,7 +2357,7 @@ describe("RuleTester", () => {
             assert.deepStrictEqual(
                 processStub.getCall(0).args,
                 [
-                    "\"rule-with-undefined-schema\" rule has options but is missing the \"meta.schema\" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/developer-guide/working-with-rules#options-schemas",
+                    "\"rule-with-undefined-schema\" rule has options but is missing the \"meta.schema\" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/latest/extend/custom-rules#options-schemas",
                     "DeprecationWarning"
                 ]
             );
@@ -2387,7 +2389,7 @@ describe("RuleTester", () => {
             assert.deepStrictEqual(
                 processStub.getCall(0).args,
                 [
-                    "\"rule-with-null-schema\" rule has options but is missing the \"meta.schema\" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/developer-guide/working-with-rules#options-schemas",
+                    "\"rule-with-null-schema\" rule has options but is missing the \"meta.schema\" property and will stop working in ESLint v9. Please add a schema: https://eslint.org/docs/latest/extend/custom-rules#options-schemas",
                     "DeprecationWarning"
                 ]
             );
@@ -2791,7 +2793,7 @@ describe("RuleTester", () => {
         const useGetCommentsRule = {
             create: context => ({
                 Program(node) {
-                    const sourceCode = context.getSourceCode();
+                    const sourceCode = context.sourceCode;
 
                     sourceCode.getComments(node);
                 }

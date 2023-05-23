@@ -21,7 +21,7 @@
                 },
                 {
                     "name": "for-direction",
-                    "description": "Enforce \"for\" loop update clause moving the counter in the right direction.",
+                    "description": "Enforce \"for\" loop update clause moving the counter in the right direction",
                     "recommended": true,
                     "fixable": false,
                     "hasSuggestions": false
@@ -228,6 +228,13 @@
                     "recommended": true,
                     "fixable": false,
                     "hasSuggestions": true
+                },
+                {
+                    "name": "no-new-native-nonconstructor",
+                    "description": "Disallow `new` operators with global non-constructor functions",
+                    "recommended": false,
+                    "fixable": false,
+                    "hasSuggestions": false
                 },
                 {
                     "name": "no-new-symbol",
@@ -580,6 +587,13 @@
                     "hasSuggestions": false
                 },
                 {
+                    "name": "logical-assignment-operators",
+                    "description": "Require or disallow logical assignment operator shorthand",
+                    "recommended": false,
+                    "fixable": true,
+                    "hasSuggestions": true
+                },
+                {
                     "name": "max-classes-per-file",
                     "description": "Enforce a maximum number of classes per file",
                     "recommended": false,
@@ -707,7 +721,7 @@
                 },
                 {
                     "name": "no-div-regex",
-                    "description": "Disallow division operators explicitly at the beginning of regular expressions",
+                    "description": "Disallow equal signs explicitly at the beginning of regular expressions",
                     "recommended": false,
                     "fixable": true,
                     "hasSuggestions": false
@@ -724,11 +738,18 @@
                     "description": "Disallow empty block statements",
                     "recommended": true,
                     "fixable": false,
-                    "hasSuggestions": false
+                    "hasSuggestions": true
                 },
                 {
                     "name": "no-empty-function",
                     "description": "Disallow empty functions",
+                    "recommended": false,
+                    "fixable": false,
+                    "hasSuggestions": false
+                },
+                {
+                    "name": "no-empty-static-block",
+                    "description": "Disallow empty static blocks",
                     "recommended": false,
                     "fixable": false,
                     "hasSuggestions": false
@@ -1046,7 +1067,7 @@
                     "description": "Disallow unnecessary `return await`",
                     "recommended": false,
                     "fixable": false,
-                    "hasSuggestions": false
+                    "hasSuggestions": true
                 },
                 {
                     "name": "no-script-url",
@@ -1277,7 +1298,7 @@
                     "description": "Enforce using named capture group in regular expression",
                     "recommended": false,
                     "fixable": false,
-                    "hasSuggestions": false
+                    "hasSuggestions": true
                 },
                 {
                     "name": "prefer-numeric-literals",
@@ -1295,7 +1316,7 @@
                 },
                 {
                     "name": "prefer-object-spread",
-                    "description": "Disallow using Object.assign with an object literal as the first argument and prefer the use of object spread instead.",
+                    "description": "Disallow using Object.assign with an object literal as the first argument and prefer the use of object spread instead",
                     "recommended": false,
                     "fixable": true,
                     "hasSuggestions": false
@@ -1361,7 +1382,7 @@
                     "description": "Enforce the use of `u` flag on RegExp",
                     "recommended": false,
                     "fixable": false,
-                    "hasSuggestions": false
+                    "hasSuggestions": true
                 },
                 {
                     "name": "require-yield",
@@ -1872,7 +1893,7 @@
     ],
     "deprecated": {
         "name": "Deprecated",
-        "description": "These rules have been deprecated in accordance with the <a href=\"/docs/user-guide/rule-deprecation\">deprecation policy</a>, and replaced by newer rules:",
+        "description": "These rules have been deprecated in accordance with the <a href=\"{{ '/use/rule-deprecation' | url }}\">deprecation policy</a>, and replaced by newer rules:",
         "rules": [
             {
                 "name": "callback-return",
@@ -1988,7 +2009,7 @@
     },
     "removed": {
         "name": "Removed",
-        "description": "These rules from older versions of ESLint (before the <a href=\"/docs/user-guide/rule-deprecation\">deprecation policy</a> existed) have been replaced by newer rules:",
+        "description": "These rules from older versions of ESLint (before the <a href=\"{{ '/use/rule-deprecation' | url }}\">deprecation policy</a> existed) have been replaced by newer rules:",
         "rules": [
             {
                 "removed": "generator-star",

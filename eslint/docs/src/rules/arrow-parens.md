@@ -1,6 +1,5 @@
 ---
 title: arrow-parens
-layout: doc
 rule_type: layout
 further_reading:
 - https://github.com/airbnb/javascript#arrows--one-arg-parens
@@ -134,7 +133,7 @@ var b = 0;
 if ((a) => b) {
  console.log('truthy value returned');
 } else {
- console.log('falsey value returned');
+ console.log('falsy value returned');
 }
 // outputs 'truthy value returned'
 ```

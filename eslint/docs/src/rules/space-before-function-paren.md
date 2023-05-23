@@ -1,10 +1,8 @@
 ---
 title: space-before-function-paren
-layout: doc
 rule_type: layout
 related_rules:
-- space-after-keywords
-- space-return-throw-case
+- keyword-spacing
 ---
 
 

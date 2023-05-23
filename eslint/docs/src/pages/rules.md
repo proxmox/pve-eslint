@@ -1,12 +1,11 @@
 ---
-title: Rules
-layout: doc
+title: Rules Reference
 permalink: /rules/index.html
 eleventyNavigation:
     key: rules
-    parent: user guide
-    title: Rules
-    order: 4
+    parent: use eslint
+    title: Rules Reference
+    order: 5
 ---
 
 {% from 'components/rule-categories.macro.html' import ruleCategories, recommended, fixable, hasSuggestions %}

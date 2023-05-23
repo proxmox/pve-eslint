@@ -57,6 +57,12 @@ ruleTester.run("no-invalid-regexp", rule, {
             options: [{ allowConstructorFlags: ["a"] }]
         },
 
+        // unknown pattern
+        "new RegExp(pattern, 'g')",
+        "new RegExp('.' + '', 'g')",
+        "new RegExp(pattern, '')",
+        "new RegExp(pattern)",
+
         // ES2020
         "new RegExp('(?<\\\\ud835\\\\udc9c>.)', 'g')",
         "new RegExp('(?<\\\\u{1d49c}>.)', 'g')",
@@ -65,6 +71,15 @@ ruleTester.run("no-invalid-regexp", rule, {
 
         // ES2022
         "new RegExp('a+(?<Z>z)?', 'd')",
+        "new RegExp('\\\\p{Script=Cpmn}', 'u')",
+        "new RegExp('\\\\p{Script=Cypro_Minoan}', 'u')",
+        "new RegExp('\\\\p{Script=Old_Uyghur}', 'u')",
+        "new RegExp('\\\\p{Script=Ougr}', 'u')",
+        "new RegExp('\\\\p{Script=Tangsa}', 'u')",
+        "new RegExp('\\\\p{Script=Tnsa}', 'u')",
+        "new RegExp('\\\\p{Script=Toto}', 'u')",
+        "new RegExp('\\\\p{Script=Vith}', 'u')",
+        "new RegExp('\\\\p{Script=Vithkuqi}', 'u')",
 
         // allowConstructorFlags
         {
@@ -85,6 +100,14 @@ ruleTester.run("no-invalid-regexp", rule, {
         },
         {
             code: "new RegExp('.', 'ga')",
+            options: [{ allowConstructorFlags: ["a"] }]
+        },
+        {
+            code: "new RegExp(pattern, 'ga')",
+            options: [{ allowConstructorFlags: ["a"] }]
+        },
+        {
+            code: "new RegExp('.' + '', 'ga')",
             options: [{ allowConstructorFlags: ["a"] }]
         },
         {
@@ -235,6 +258,34 @@ ruleTester.run("no-invalid-regexp", rule, {
             errors: [{
                 messageId: "regexMessage",
                 data: { message: "Invalid regular expression: /\\/: \\ at end of pattern" },
+                type: "NewExpression"
+            }]
+        },
+
+        // https://github.com/eslint/eslint/issues/16573
+        {
+            code: "RegExp(')' + '', 'a');",
+            errors: [{
+                messageId: "regexMessage",
+                data: { message: "Invalid flags supplied to RegExp constructor 'a'" },
+                type: "CallExpression"
+            }]
+        },
+        {
+            code: "new RegExp('.' + '', 'az');",
+            options: [{ allowConstructorFlags: ["z"] }],
+            errors: [{
+                messageId: "regexMessage",
+                data: { message: "Invalid flags supplied to RegExp constructor 'a'" },
+                type: "NewExpression"
+            }]
+        },
+        {
+            code: "new RegExp(pattern, 'az');",
+            options: [{ allowConstructorFlags: ["a"] }],
+            errors: [{
+                messageId: "regexMessage",
+                data: { message: "Invalid flags supplied to RegExp constructor 'z'" },
                 type: "NewExpression"
             }]
         }

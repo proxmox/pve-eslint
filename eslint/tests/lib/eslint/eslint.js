@@ -690,7 +690,8 @@ describe("ESLint", () => {
                             severity: 2,
                             message: "Parsing error: Unexpected token is",
                             line: 1,
-                            column: 19
+                            column: 19,
+                            nodeType: null
                         }
                     ],
                     suppressedMessages: [],
@@ -730,7 +731,8 @@ describe("ESLint", () => {
                             severity: 2,
                             message: "Parsing error: Unexpected token",
                             line: 1,
-                            column: 10
+                            column: 10,
+                            nodeType: null
                         }
                     ],
                     suppressedMessages: [],
@@ -819,7 +821,8 @@ describe("ESLint", () => {
                             severity: 2,
                             message: "Parsing error: Unexpected token is",
                             line: 1,
-                            column: 19
+                            column: 19,
+                            nodeType: null
                         }
                     ],
                     suppressedMessages: [],
@@ -4400,7 +4403,7 @@ describe("ESLint", () => {
                 const cwd = getFixturePath("ignored-paths", "configurations");
                 const engine = new ESLint({ cwd });
 
-                // a .eslintignore in parent directories includes `*.js`, but don't load it.
+                // an .eslintignore in parent directories includes `*.js`, but don't load it.
                 assert(!await engine.isPathIgnored("foo.js"));
                 assert(await engine.isPathIgnored("node_modules/foo.js"));
             });
@@ -4971,7 +4974,7 @@ describe("ESLint", () => {
 
             const rulesMeta = engine.getRulesMetaForResults([]);
 
-            assert.strictEqual(Object.keys(rulesMeta).length, 0);
+            assert.deepStrictEqual(rulesMeta, {});
         });
 
         it("should return one rule meta when there is a linting error", async () => {
@@ -4987,6 +4990,7 @@ describe("ESLint", () => {
             const results = await engine.lintText("a");
             const rulesMeta = engine.getRulesMetaForResults(results);
 
+            assert.strictEqual(Object.keys(rulesMeta).length, 1);
             assert.strictEqual(rulesMeta.semi, coreRules.get("semi").meta);
         });
 
@@ -5003,6 +5007,7 @@ describe("ESLint", () => {
             const results = await engine.lintText("a // eslint-disable-line semi");
             const rulesMeta = engine.getRulesMetaForResults(results);
 
+            assert.strictEqual(Object.keys(rulesMeta).length, 1);
             assert.strictEqual(rulesMeta.semi, coreRules.get("semi").meta);
         });
 
@@ -5050,6 +5055,51 @@ describe("ESLint", () => {
                 rulesMeta["n/no-new-require"],
                 nodePlugin.rules["no-new-require"].meta
             );
+        });
+
+        it("should ignore messages not related to a rule", async () => {
+            const engine = new ESLint({
+                useEslintrc: false,
+                overrideConfig: {
+                    ignorePatterns: "ignored.js",
+                    rules: {
+                        "no-var": "warn"
+                    }
+                },
+                reportUnusedDisableDirectives: "warn"
+            });
+
+            {
+                const results = await engine.lintText("syntax error");
+                const rulesMeta = engine.getRulesMetaForResults(results);
+
+                assert.deepStrictEqual(rulesMeta, {});
+            }
+            {
+                const results = await engine.lintText("// eslint-disable-line no-var");
+                const rulesMeta = engine.getRulesMetaForResults(results);
+
+                assert.deepStrictEqual(rulesMeta, {});
+            }
+            {
+                const results = await engine.lintText("", { filePath: "ignored.js", warnIgnored: true });
+                const rulesMeta = engine.getRulesMetaForResults(results);
+
+                assert.deepStrictEqual(rulesMeta, {});
+            }
+        });
+
+        it("should return a non-empty value if some of the messages are related to a rule", async () => {
+            const engine = new ESLint({
+                useEslintrc: false,
+                overrideConfig: { rules: { "no-var": "warn" } },
+                reportUnusedDisableDirectives: "warn"
+            });
+
+            const results = await engine.lintText("// eslint-disable-line no-var\nvar foo;");
+            const rulesMeta = engine.getRulesMetaForResults(results);
+
+            assert.deepStrictEqual(rulesMeta, { "no-var": coreRules.get("no-var").meta });
         });
     });
 

@@ -1,6 +1,5 @@
 ---
 title: no-undefined
-layout: doc
 rule_type: suggestion
 related_rules:
 - no-undef-init
@@ -58,6 +57,8 @@ if (foo === undefined) {
 function foo(undefined) {
     // ...
 }
+
+bar(undefined, "lorem");
 ```
 
 :::
@@ -78,6 +79,8 @@ if (typeof foo === "undefined") {
 }
 
 global.undefined = "foo";
+
+bar(void 0, "lorem");
 ```
 
 :::

@@ -19,11 +19,17 @@ const rule = require("../../../lib/rules/prefer-const"),
 
 const ruleTester = new RuleTester({ parserOptions: { ecmaVersion: 6 } });
 
-ruleTester.defineRule("use-x", context => ({
-    VariableDeclaration() {
-        context.markVariableAsUsed("x");
+ruleTester.defineRule("use-x", {
+    create(context) {
+        const sourceCode = context.sourceCode;
+
+        return {
+            VariableDeclaration(node) {
+                sourceCode.markVariableAsUsed("x", node);
+            }
+        };
     }
-}));
+});
 
 ruleTester.run("prefer-const", rule, {
     valid: [

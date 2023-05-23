@@ -29,6 +29,7 @@ const path = require("path");
 const internalPlugin = require("eslint-plugin-internal-rules");
 const eslintPlugin = require("eslint-plugin-eslint-plugin");
 const { FlatCompat } = require("@eslint/eslintrc");
+const js = require("./packages/js");
 const globals = require("globals");
 
 //-----------------------------------------------------------------------------
@@ -36,7 +37,8 @@ const globals = require("globals");
 //-----------------------------------------------------------------------------
 
 const compat = new FlatCompat({
-    baseDirectory: __dirname
+    baseDirectory: __dirname,
+    recommendedConfig: js.configs.recommended
 });
 
 const INTERNAL_FILES = {
@@ -79,6 +81,23 @@ function createInternalFilesPatterns(pattern = null) {
 module.exports = [
     ...compat.extends("eslint"),
     {
+        ignores: [
+            "build/**",
+            "coverage/**",
+            "docs/*",
+            "!docs/*.js",
+            "!docs/tools/",
+            "jsdoc/**",
+            "templates/**",
+            "tests/bench/**",
+            "tests/fixtures/**",
+            "tests/performance/**",
+            "tmp/**",
+            "tools/internal-rules/node_modules/**",
+            "**/test.js"
+        ]
+    },
+    {
         plugins: {
             "internal-rules": internalPlugin,
             "eslint-plugin": eslintPlugin
@@ -101,9 +120,10 @@ module.exports = [
         }
     },
     {
-        files: ["tools/*.js"],
+        files: ["tools/*.js", "docs/tools/*.js"],
         rules: {
-            "no-console": "off"
+            "no-console": "off",
+            "n/no-process-exit": "off"
         }
     },
     {
@@ -117,7 +137,7 @@ module.exports = [
             "eslint-plugin/prefer-placeholders": "error",
             "eslint-plugin/prefer-replace-text": "error",
             "eslint-plugin/report-message-format": ["error", "[^a-z].*\\.$"],
-            "eslint-plugin/require-meta-docs-description": ["error", { pattern: "^(Enforce|Require|Disallow)" }],
+            "eslint-plugin/require-meta-docs-description": ["error", { pattern: "^(Enforce|Require|Disallow) .+[^. ]$" }],
             "internal-rules/no-invalid-meta": "error"
         }
     },
@@ -125,7 +145,7 @@ module.exports = [
         files: ["lib/rules/*"],
         ignores: ["index.js"],
         rules: {
-            "eslint-plugin/require-meta-docs-url": ["error", { pattern: "https://eslint.org/docs/rules/{{name}}" }]
+            "eslint-plugin/require-meta-docs-url": ["error", { pattern: "https://eslint.org/docs/latest/rules/{{name}}" }]
         }
     },
     {

@@ -29,9 +29,23 @@ const DEFAULT_CONFIG = {
     loc: true
 };
 const linter = new Linter();
+const flatLinter = new Linter({ configType: "flat" });
 const AST = espree.parse("let foo = bar;", DEFAULT_CONFIG),
     TEST_CODE = "var answer = 6 * 7;",
     SHEBANG_TEST_CODE = `#!/usr/bin/env node\n${TEST_CODE}`;
+const filename = "foo.js";
+
+/**
+ * Get variables in the current scope
+ * @param {Object} scope current scope
+ * @param {string} name name of the variable to look for
+ * @returns {ASTNode|null} The variable object
+ * @private
+ */
+function getVariable(scope, name) {
+    return scope.variables.find(v => v.name === name) || null;
+}
+
 
 //------------------------------------------------------------------------------
 // Tests
@@ -253,7 +267,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
 
@@ -281,7 +301,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
 
@@ -311,7 +337,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledTwice, "Event handler should be called twice.");
 
@@ -343,7 +375,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -371,7 +409,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionDeclaration: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionDeclaration: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
 
@@ -400,7 +444,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionDeclaration: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionDeclaration: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" }, parserOptions: { ecmaVersion: 6, sourceType: "module" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
 
@@ -431,7 +481,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionDeclaration: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionDeclaration: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
 
@@ -462,7 +518,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionDeclaration: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionDeclaration: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
 
@@ -492,7 +554,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionDeclaration: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionDeclaration: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
 
@@ -524,7 +592,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionDeclaration: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionDeclaration: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -555,7 +629,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -586,7 +666,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ ArrowFunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        ArrowFunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" }, parserOptions: { ecmaVersion: 6 } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -615,7 +701,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -648,7 +740,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledTwice, "Event handler should be called.");
         });
@@ -680,7 +778,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledTwice, "Event handler should be called.");
         });
@@ -710,7 +814,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -748,7 +858,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" } });
             assert.isTrue(spy.calledTwice, "Event handler should be called.");
         });
@@ -777,7 +893,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ ClassExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        ClassExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" }, parserOptions: { ecmaVersion: 6 } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -806,7 +928,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ ClassDeclaration: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        ClassDeclaration: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" }, parserOptions: { ecmaVersion: 6 } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -835,7 +963,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" }, parserOptions: { ecmaVersion: 6 } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -868,7 +1002,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionExpression: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionExpression: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" }, parserOptions: { ecmaVersion: 6 } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -899,7 +1039,13 @@ describe("SourceCode", () => {
 
             const spy = sinon.spy(assertJSDoc);
 
-            linter.defineRule("checker", () => ({ FunctionDeclaration: spy }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        FunctionDeclaration: spy
+                    });
+                }
+            });
             linter.verify(code, { rules: { checker: "error" }, parserOptions: { ecmaVersion: 6 } });
             assert.isTrue(spy.calledOnce, "Event handler should be called.");
         });
@@ -956,13 +1102,17 @@ describe("SourceCode", () => {
                 "/* Trailing comment for VariableDeclaration */"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                VariableDeclaration: assertCommentCount(1, 1),
-                VariableDeclarator: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                Literal: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        VariableDeclaration: assertCommentCount(1, 1),
+                        VariableDeclarator: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        Literal: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -975,13 +1125,17 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                ExpressionStatement: assertCommentCount(0, 1),
-                CallExpression: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        ExpressionStatement: assertCommentCount(0, 1),
+                        CallExpression: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -992,12 +1146,16 @@ describe("SourceCode", () => {
                 "if (/* Leading comment for Identifier */ a) {}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                IfStatement: assertCommentCount(1, 0),
-                Identifier: assertCommentCount(1, 0),
-                BlockStatement: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        IfStatement: assertCommentCount(1, 0),
+                        Identifier: assertCommentCount(1, 0),
+                        BlockStatement: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1012,15 +1170,19 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                VariableDeclaration: assertCommentCount(0, 0),
-                VariableDeclarator: assertCommentCount(0, 0),
-                ObjectExpression: assertCommentCount(0, 1),
-                ReturnStatement: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        VariableDeclaration: assertCommentCount(0, 0),
+                        VariableDeclarator: assertCommentCount(0, 0),
+                        ObjectExpression: assertCommentCount(0, 1),
+                        ReturnStatement: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1034,15 +1196,19 @@ describe("SourceCode", () => {
                 "var baz;"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                VariableDeclaration: assertCommentCount(0, 0),
-                VariableDeclarator: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                ObjectExpression: assertCommentCount(0, 0),
-                Property: assertCommentCount(0, 1),
-                Literal: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        VariableDeclaration: assertCommentCount(0, 0),
+                        VariableDeclarator: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        ObjectExpression: assertCommentCount(0, 0),
+                        Property: assertCommentCount(0, 1),
+                        Literal: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1061,16 +1227,20 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                ExportDefaultDeclaration: assertCommentCount(1, 0),
-                ClassDeclaration: assertCommentCount(0, 0),
-                ClassBody: assertCommentCount(0, 0),
-                MethodDefinition: assertCommentCount(1, 0),
-                Identifier: assertCommentCount(0, 0),
-                FunctionExpression: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        ExportDefaultDeclaration: assertCommentCount(1, 0),
+                        ClassDeclaration: assertCommentCount(0, 0),
+                        ClassBody: assertCommentCount(0, 0),
+                        MethodDefinition: assertCommentCount(1, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        FunctionExpression: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1084,19 +1254,25 @@ describe("SourceCode", () => {
             ].join("\n");
             let varDeclCount = 0;
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                VariableDeclaration(node) {
-                    if (varDeclCount === 0) {
-                        assertCommentCount(1, 1)(node);
-                    } else {
-                        assertCommentCount(1, 0)(node);
-                    }
-                    varDeclCount++;
-                },
-                VariableDeclarator: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+
+                        VariableDeclaration(node) {
+                            if (varDeclCount === 0) {
+                                assertCommentCount(1, 1)(node);
+                            } else {
+                                assertCommentCount(1, 0)(node);
+                            }
+                            varDeclCount++;
+                        },
+
+                        VariableDeclarator: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1110,18 +1286,24 @@ describe("SourceCode", () => {
             ].join("\n");
             let varDeclCount = 0;
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                VariableDeclaration(node) {
-                    if (varDeclCount === 0) {
-                        assertCommentCount(1, 1)(node);
-                    } else {
-                        assertCommentCount(1, 0)(node);
-                    }
-                    varDeclCount++;
-                },
-                Identifier: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+
+                        VariableDeclaration(node) {
+                            if (varDeclCount === 0) {
+                                assertCommentCount(1, 1)(node);
+                            } else {
+                                assertCommentCount(1, 0)(node);
+                            }
+                            varDeclCount++;
+                        },
+
+                        Identifier: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1129,7 +1311,13 @@ describe("SourceCode", () => {
         it("should include shebang comment when program only contains shebang", () => {
             const code = "#!/usr/bin/env node";
 
-            linter.defineRule("checker", () => ({ Program: assertCommentCount(1, 0) }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(1, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1141,13 +1329,17 @@ describe("SourceCode", () => {
                 "// Trailing comment for VariableDeclaration"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                VariableDeclaration: assertCommentCount(1, 1),
-                VariableDeclarator: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 1),
-                Literal: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        VariableDeclaration: assertCommentCount(1, 1),
+                        VariableDeclarator: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 1),
+                        Literal: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1161,14 +1353,18 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                ExpressionStatement: assertCommentCount(1, 1),
-                CallExpression: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        ExpressionStatement: assertCommentCount(1, 1),
+                        CallExpression: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1182,13 +1378,17 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                DebuggerStatement: assertCommentCount(1, 1)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        DebuggerStatement: assertCommentCount(1, 1)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1202,13 +1402,17 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                ReturnStatement: assertCommentCount(1, 1)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        ReturnStatement: assertCommentCount(1, 1)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1222,13 +1426,17 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                ThrowStatement: assertCommentCount(1, 1)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        ThrowStatement: assertCommentCount(1, 1)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1243,16 +1451,20 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                WhileStatement: assertCommentCount(1, 1),
-                Literal: assertCommentCount(0, 0),
-                VariableDeclaration: assertCommentCount(1, 0),
-                VariableDeclarator: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        WhileStatement: assertCommentCount(1, 1),
+                        Literal: assertCommentCount(0, 0),
+                        VariableDeclaration: assertCommentCount(1, 0),
+                        VariableDeclarator: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1271,24 +1483,30 @@ describe("SourceCode", () => {
             ].join("\n");
             let switchCaseCount = 0;
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                SwitchStatement: assertCommentCount(0, 0),
-                SwitchCase: node => {
-                    if (switchCaseCount === 0) {
-                        assertCommentCount(1, 1)(node);
-                    } else {
-                        assertCommentCount(1, 0)(node);
-                    }
-                    switchCaseCount++;
-                },
-                Literal: assertCommentCount(0, 0),
-                ExpressionStatement: assertCommentCount(0, 0),
-                CallExpression: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        SwitchStatement: assertCommentCount(0, 0),
+
+                        SwitchCase(node) {
+                            if (switchCaseCount === 0) {
+                                assertCommentCount(1, 1)(node);
+                            } else {
+                                assertCommentCount(1, 0)(node);
+                            }
+                            switchCaseCount++;
+                        },
+
+                        Literal: assertCommentCount(0, 0),
+                        ExpressionStatement: assertCommentCount(0, 0),
+                        CallExpression: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1305,21 +1523,27 @@ describe("SourceCode", () => {
             ].join("\n");
             let switchCaseCount = 0;
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                SwitchStatement: assertCommentCount(0, 0),
-                SwitchCase: node => {
-                    if (switchCaseCount === 0) {
-                        assertCommentCount(1, 1)(node);
-                    } else {
-                        assertCommentCount(1, 0)(node);
-                    }
-                    switchCaseCount++;
-                },
-                Literal: assertCommentCount(0, 0),
-                ExpressionStatement: assertCommentCount(0, 0),
-                CallExpression: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        SwitchStatement: assertCommentCount(0, 0),
+
+                        SwitchCase(node) {
+                            if (switchCaseCount === 0) {
+                                assertCommentCount(1, 1)(node);
+                            } else {
+                                assertCommentCount(1, 0)(node);
+                            }
+                            switchCaseCount++;
+                        },
+
+                        Literal: assertCommentCount(0, 0),
+                        ExpressionStatement: assertCommentCount(0, 0),
+                        CallExpression: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1338,23 +1562,29 @@ describe("SourceCode", () => {
             ].join("\n");
             let breakStatementCount = 0;
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                SwitchStatement: assertCommentCount(0, 0),
-                SwitchCase: node => {
-                    if (breakStatementCount === 0) {
-                        assertCommentCount(0, 0)(node);
-                    } else {
-                        assertCommentCount(0, 1)(node);
-                    }
-                    breakStatementCount++;
-                },
-                BreakStatement: assertCommentCount(0, 0),
-                Literal: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        SwitchStatement: assertCommentCount(0, 0),
+
+                        SwitchCase(node) {
+                            if (breakStatementCount === 0) {
+                                assertCommentCount(0, 0)(node);
+                            } else {
+                                assertCommentCount(0, 1)(node);
+                            }
+                            breakStatementCount++;
+                        },
+
+                        BreakStatement: assertCommentCount(0, 0),
+                        Literal: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1368,14 +1598,18 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                SwitchStatement: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                SwitchCase: assertCommentCount(0, 1),
-                BreakStatement: assertCommentCount(0, 0),
-                Literal: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        SwitchStatement: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        SwitchCase: assertCommentCount(0, 1),
+                        BreakStatement: assertCommentCount(0, 0),
+                        Literal: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1394,22 +1628,26 @@ describe("SourceCode", () => {
                 "};"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                ExpressionStatement: assertCommentCount(0, 0),
-                AssignmentExpression: assertCommentCount(0, 0),
-                MemberExpression: assertCommentCount(0, 0),
-                Identifier: assertCommentCount(0, 0),
-                FunctionExpression: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(0, 0),
-                SwitchStatement: assertCommentCount(0, 0),
-                SwitchCase: assertCommentCount(0, 1),
-                ReturnStatement: assertCommentCount(0, 0),
-                CallExpression: assertCommentCount(0, 0),
-                BinaryExpression: assertCommentCount(0, 0),
-                Literal: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        ExpressionStatement: assertCommentCount(0, 0),
+                        AssignmentExpression: assertCommentCount(0, 0),
+                        MemberExpression: assertCommentCount(0, 0),
+                        Identifier: assertCommentCount(0, 0),
+                        FunctionExpression: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(0, 0),
+                        SwitchStatement: assertCommentCount(0, 0),
+                        SwitchCase: assertCommentCount(0, 1),
+                        ReturnStatement: assertCommentCount(0, 0),
+                        CallExpression: assertCommentCount(0, 0),
+                        BinaryExpression: assertCommentCount(0, 0),
+                        Literal: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1420,7 +1658,13 @@ describe("SourceCode", () => {
                 "/*another comment*/"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({ Program: assertCommentCount(2, 0) }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(2, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1433,10 +1677,14 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                BlockStatement: assertCommentCount(0, 2)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        BlockStatement: assertCommentCount(0, 2)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1449,11 +1697,15 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                ClassDeclaration: assertCommentCount(0, 0),
-                ClassBody: assertCommentCount(0, 2)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        ClassDeclaration: assertCommentCount(0, 0),
+                        ClassBody: assertCommentCount(0, 2)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1466,11 +1718,15 @@ describe("SourceCode", () => {
                 "})"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                ExpressionStatement: assertCommentCount(0, 0),
-                ObjectExpression: assertCommentCount(0, 2)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        ExpressionStatement: assertCommentCount(0, 0),
+                        ObjectExpression: assertCommentCount(0, 2)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1483,11 +1739,15 @@ describe("SourceCode", () => {
                 "]"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                ExpressionStatement: assertCommentCount(0, 0),
-                ArrayExpression: assertCommentCount(0, 2)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        ExpressionStatement: assertCommentCount(0, 0),
+                        ArrayExpression: assertCommentCount(0, 2)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1500,11 +1760,15 @@ describe("SourceCode", () => {
                 "}"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                SwitchStatement: assertCommentCount(0, 2),
-                Identifier: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        SwitchStatement: assertCommentCount(0, 2),
+                        Identifier: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1519,21 +1783,27 @@ describe("SourceCode", () => {
             ].join("\n");
             let varDeclCount = 0;
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                VariableDeclaration: assertCommentCount(1, 2),
-                VariableDeclarator: node => {
-                    if (varDeclCount === 0) {
-                        assertCommentCount(0, 0)(node);
-                    } else if (varDeclCount === 1) {
-                        assertCommentCount(1, 0)(node);
-                    } else {
-                        assertCommentCount(1, 0)(node);
-                    }
-                    varDeclCount++;
-                },
-                Identifier: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        VariableDeclaration: assertCommentCount(1, 2),
+
+                        VariableDeclarator(node) {
+                            if (varDeclCount === 0) {
+                                assertCommentCount(0, 0)(node);
+                            } else if (varDeclCount === 1) {
+                                assertCommentCount(1, 0)(node);
+                            } else {
+                                assertCommentCount(1, 0)(node);
+                            }
+                            varDeclCount++;
+                        },
+
+                        Identifier: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1545,12 +1815,16 @@ describe("SourceCode", () => {
                 "    a;"
             ].join("\n");
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                VariableDeclaration: assertCommentCount(0, 0),
-                VariableDeclarator: assertCommentCount(2, 0),
-                Identifier: assertCommentCount(0, 0)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        VariableDeclaration: assertCommentCount(0, 0),
+                        VariableDeclarator: assertCommentCount(2, 0),
+                        Identifier: assertCommentCount(0, 0)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1558,12 +1832,16 @@ describe("SourceCode", () => {
         it("should return attached comments between tokens to the correct nodes for empty function declarations", () => {
             const code = "/* 1 */ function /* 2 */ foo(/* 3 */) /* 4 */ { /* 5 */ } /* 6 */";
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                FunctionDeclaration: assertCommentCount(1, 1),
-                Identifier: assertCommentCount(1, 0),
-                BlockStatement: assertCommentCount(1, 1)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        FunctionDeclaration: assertCommentCount(1, 1),
+                        Identifier: assertCommentCount(1, 0),
+                        BlockStatement: assertCommentCount(1, 1)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1572,19 +1850,25 @@ describe("SourceCode", () => {
             const code = "/* 1 */ class /* 2 */ Foo /* 3 */ extends /* 4 */ Bar /* 5 */ { /* 6 */ } /* 7 */";
             let idCount = 0;
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                ClassDeclaration: assertCommentCount(1, 1),
-                Identifier: node => {
-                    if (idCount === 0) {
-                        assertCommentCount(1, 1)(node);
-                    } else {
-                        assertCommentCount(1, 1)(node);
-                    }
-                    idCount++;
-                },
-                ClassBody: assertCommentCount(1, 1)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        ClassDeclaration: assertCommentCount(1, 1),
+
+                        Identifier(node) {
+                            if (idCount === 0) {
+                                assertCommentCount(1, 1)(node);
+                            } else {
+                                assertCommentCount(1, 1)(node);
+                            }
+                            idCount++;
+                        },
+
+                        ClassBody: assertCommentCount(1, 1)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1592,11 +1876,15 @@ describe("SourceCode", () => {
         it("should return attached comments between tokens to the correct nodes for empty switch statements", () => {
             const code = "/* 1 */ switch /* 2 */ (/* 3 */ foo /* 4 */) /* 5 */ { /* 6 */ } /* 7 */";
 
-            linter.defineRule("checker", () => ({
-                Program: assertCommentCount(0, 0),
-                SwitchStatement: assertCommentCount(1, 6),
-                Identifier: assertCommentCount(1, 1)
-            }));
+            linter.defineRule("checker", {
+                create() {
+                    return ({
+                        Program: assertCommentCount(0, 0),
+                        SwitchStatement: assertCommentCount(1, 6),
+                        Identifier: assertCommentCount(1, 1)
+                    });
+                }
+            });
 
             assert.isEmpty(linter.verify(code, config));
         });
@@ -1734,7 +2022,6 @@ describe("SourceCode", () => {
         });
 
     });
-
 
     describe("getNodeByRangeIndex()", () => {
 
@@ -2736,5 +3023,768 @@ describe("SourceCode", () => {
         it("should not throw if the location one spot past the last character is given", () => {
             assert.strictEqual(sourceCode.getIndexFromLoc({ line: 8, column: 0 }), CODE.length);
         });
+    });
+
+    describe("getScope()", () => {
+
+        it("should throw an error when argument is missing", () => {
+
+            linter.defineRule("get-scope", {
+                create: context => ({
+                    Program() {
+                        context.sourceCode.getScope();
+                    }
+                })
+            });
+
+            assert.throws(() => {
+                linter.verify(
+                    "foo",
+                    {
+                        rules: { "get-scope": 2 }
+                    }
+                );
+            }, /Missing required argument: node/u);
+
+        });
+
+        /**
+         * Get the scope on the node `astSelector` specified.
+         * @param {string} code The source code to verify.
+         * @param {string} astSelector The AST selector to get scope.
+         * @param {number} [ecmaVersion=5] The ECMAScript version.
+         * @returns {{node: ASTNode, scope: escope.Scope}} Gotten scope.
+         */
+        function getScope(code, astSelector, ecmaVersion = 5) {
+            let node, scope;
+
+            linter.defineRule("get-scope", {
+                create: context => ({
+                    [astSelector](node0) {
+                        node = node0;
+                        scope = context.sourceCode.getScope(node);
+                    }
+                })
+            });
+            linter.verify(
+                code,
+                {
+                    parserOptions: { ecmaVersion },
+                    rules: { "get-scope": 2 }
+                }
+            );
+
+            return { node, scope };
+        }
+
+        it("should return 'function' scope on FunctionDeclaration (ES5)", () => {
+            const { node, scope } = getScope("function f() {}", "FunctionDeclaration");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node);
+        });
+
+        it("should return 'function' scope on FunctionExpression (ES5)", () => {
+            const { node, scope } = getScope("!function f() {}", "FunctionExpression");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node);
+        });
+
+        it("should return 'function' scope on the body of FunctionDeclaration (ES5)", () => {
+            const { node, scope } = getScope("function f() {}", "BlockStatement");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent);
+        });
+
+        it("should return 'function' scope on the body of FunctionDeclaration (ES2015)", () => {
+            const { node, scope } = getScope("function f() {}", "BlockStatement", 2015);
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent);
+        });
+
+        it("should return 'function' scope on BlockStatement in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { { var b; } }", "BlockStatement > BlockStatement");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["arguments", "b"]);
+        });
+
+        it("should return 'block' scope on BlockStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { { let a; var b; } }", "BlockStatement > BlockStatement", 2015);
+
+            assert.strictEqual(scope.type, "block");
+            assert.strictEqual(scope.upper.type, "function");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["a"]);
+            assert.deepStrictEqual(scope.variableScope.variables.map(v => v.name), ["arguments", "b"]);
+        });
+
+        it("should return 'block' scope on nested BlockStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { { let a; { let b; var c; } } }", "BlockStatement > BlockStatement > BlockStatement", 2015);
+
+            assert.strictEqual(scope.type, "block");
+            assert.strictEqual(scope.upper.type, "block");
+            assert.strictEqual(scope.upper.upper.type, "function");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["b"]);
+            assert.deepStrictEqual(scope.upper.variables.map(v => v.name), ["a"]);
+            assert.deepStrictEqual(scope.variableScope.variables.map(v => v.name), ["arguments", "c"]);
+        });
+
+        it("should return 'function' scope on SwitchStatement in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { switch (a) { case 0: var b; } }", "SwitchStatement");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["arguments", "b"]);
+        });
+
+        it("should return 'switch' scope on SwitchStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { switch (a) { case 0: let b; } }", "SwitchStatement", 2015);
+
+            assert.strictEqual(scope.type, "switch");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["b"]);
+        });
+
+        it("should return 'function' scope on SwitchCase in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { switch (a) { case 0: var b; } }", "SwitchCase");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent.parent.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["arguments", "b"]);
+        });
+
+        it("should return 'switch' scope on SwitchCase in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { switch (a) { case 0: let b; } }", "SwitchCase", 2015);
+
+            assert.strictEqual(scope.type, "switch");
+            assert.strictEqual(scope.block, node.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["b"]);
+        });
+
+        it("should return 'catch' scope on CatchClause in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { try {} catch (e) { var a; } }", "CatchClause");
+
+            assert.strictEqual(scope.type, "catch");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["e"]);
+        });
+
+        it("should return 'catch' scope on CatchClause in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { try {} catch (e) { let a; } }", "CatchClause", 2015);
+
+            assert.strictEqual(scope.type, "catch");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["e"]);
+        });
+
+        it("should return 'catch' scope on the block of CatchClause in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { try {} catch (e) { var a; } }", "CatchClause > BlockStatement");
+
+            assert.strictEqual(scope.type, "catch");
+            assert.strictEqual(scope.block, node.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["e"]);
+        });
+
+        it("should return 'block' scope on the block of CatchClause in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { try {} catch (e) { let a; } }", "CatchClause > BlockStatement", 2015);
+
+            assert.strictEqual(scope.type, "block");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["a"]);
+        });
+
+        it("should return 'function' scope on ForStatement in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { for (var i = 0; i < 10; ++i) {} }", "ForStatement");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["arguments", "i"]);
+        });
+
+        it("should return 'for' scope on ForStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { for (let i = 0; i < 10; ++i) {} }", "ForStatement", 2015);
+
+            assert.strictEqual(scope.type, "for");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["i"]);
+        });
+
+        it("should return 'function' scope on the block body of ForStatement in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { for (var i = 0; i < 10; ++i) {} }", "ForStatement > BlockStatement");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent.parent.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["arguments", "i"]);
+        });
+
+        it("should return 'block' scope on the block body of ForStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { for (let i = 0; i < 10; ++i) {} }", "ForStatement > BlockStatement", 2015);
+
+            assert.strictEqual(scope.type, "block");
+            assert.strictEqual(scope.upper.type, "for");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), []);
+            assert.deepStrictEqual(scope.upper.variables.map(v => v.name), ["i"]);
+        });
+
+        it("should return 'function' scope on ForInStatement in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { for (var key in obj) {} }", "ForInStatement");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["arguments", "key"]);
+        });
+
+        it("should return 'for' scope on ForInStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { for (let key in obj) {} }", "ForInStatement", 2015);
+
+            assert.strictEqual(scope.type, "for");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["key"]);
+        });
+
+        it("should return 'function' scope on the block body of ForInStatement in functions (ES5)", () => {
+            const { node, scope } = getScope("function f() { for (var key in obj) {} }", "ForInStatement > BlockStatement");
+
+            assert.strictEqual(scope.type, "function");
+            assert.strictEqual(scope.block, node.parent.parent.parent);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["arguments", "key"]);
+        });
+
+        it("should return 'block' scope on the block body of ForInStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { for (let key in obj) {} }", "ForInStatement > BlockStatement", 2015);
+
+            assert.strictEqual(scope.type, "block");
+            assert.strictEqual(scope.upper.type, "for");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), []);
+            assert.deepStrictEqual(scope.upper.variables.map(v => v.name), ["key"]);
+        });
+
+        it("should return 'for' scope on ForOfStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { for (let x of xs) {} }", "ForOfStatement", 2015);
+
+            assert.strictEqual(scope.type, "for");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), ["x"]);
+        });
+
+        it("should return 'block' scope on the block body of ForOfStatement in functions (ES2015)", () => {
+            const { node, scope } = getScope("function f() { for (let x of xs) {} }", "ForOfStatement > BlockStatement", 2015);
+
+            assert.strictEqual(scope.type, "block");
+            assert.strictEqual(scope.upper.type, "for");
+            assert.strictEqual(scope.block, node);
+            assert.deepStrictEqual(scope.variables.map(v => v.name), []);
+            assert.deepStrictEqual(scope.upper.variables.map(v => v.name), ["x"]);
+        });
+
+        it("should shadow the same name variable by the iteration variable.", () => {
+            const { node, scope } = getScope("let x; for (let x of x) {}", "ForOfStatement", 2015);
+
+            assert.strictEqual(scope.type, "for");
+            assert.strictEqual(scope.upper.type, "global");
+            assert.strictEqual(scope.block, node);
+            assert.strictEqual(scope.upper.variables[0].references.length, 0);
+            assert.strictEqual(scope.references[0].identifier, node.left.declarations[0].id);
+            assert.strictEqual(scope.references[1].identifier, node.right);
+            assert.strictEqual(scope.references[1].resolved, scope.variables[0]);
+        });
+    });
+
+    describe("getAncestors()", () => {
+        const code = TEST_CODE;
+
+        it("should retrieve all ancestors when used", () => {
+
+            let spy;
+
+            const config = {
+                plugins: {
+                    test: {
+                        rules: {
+                            checker: {
+                                create(context) {
+                                    spy = sinon.spy(node => {
+                                        const sourceCode = context.sourceCode;
+                                        const ancestors = sourceCode.getAncestors(node);
+
+                                        assert.strictEqual(ancestors.length, 3);
+                                    });
+                                    return { BinaryExpression: spy };
+                                }
+                            }
+                        }
+                    }
+                },
+                rules: { "test/checker": "error" }
+            };
+
+            flatLinter.verify(code, config, filename, true);
+            assert(spy && spy.calledOnce, "Spy was not called.");
+        });
+
+        it("should retrieve empty ancestors for root node", () => {
+            let spy;
+
+            const config = {
+                plugins: {
+                    test: {
+                        rules: {
+                            checker: {
+                                create(context) {
+                                    spy = sinon.spy(node => {
+                                        const sourceCode = context.sourceCode;
+                                        const ancestors = sourceCode.getAncestors(node);
+
+                                        assert.strictEqual(ancestors.length, 0);
+                                    });
+
+                                    return { Program: spy };
+                                }
+                            }
+                        }
+                    }
+                },
+                rules: { "test/checker": "error" }
+            };
+
+            flatLinter.verify(code, config);
+            assert(spy && spy.calledOnce, "Spy was not called.");
+        });
+
+        it("should throw an error when the argument is missing", () => {
+            let spy;
+
+            const config = {
+                plugins: {
+                    test: {
+                        rules: {
+                            checker: {
+                                create(context) {
+                                    spy = sinon.spy(() => {
+                                        const sourceCode = context.sourceCode;
+
+                                        assert.throws(() => {
+                                            sourceCode.getAncestors();
+                                        }, /Missing required argument: node/u);
+
+                                    });
+
+                                    return { Program: spy };
+                                }
+                            }
+                        }
+                    }
+                },
+                rules: { "test/checker": "error" }
+            };
+
+            flatLinter.verify(code, config);
+            assert(spy && spy.calledOnce, "Spy was not called.");
+        });
+    });
+
+
+    describe("getDeclaredVariables(node)", () => {
+
+        /**
+         * Assert `sourceCode.getDeclaredVariables(node)` is valid.
+         * @param {string} code A code to check.
+         * @param {string} type A type string of ASTNode. This method checks variables on the node of the type.
+         * @param {Array<Array<string>>} expectedNamesList An array of expected variable names. The expected variable names is an array of string.
+         * @returns {void}
+         */
+        function verify(code, type, expectedNamesList) {
+            linter.defineRules({
+                test: {
+                    create(context) {
+
+                        const sourceCode = context.sourceCode;
+
+                        /**
+                         * Assert `sourceCode.getDeclaredVariables(node)` is empty.
+                         * @param {ASTNode} node A node to check.
+                         * @returns {void}
+                         */
+                        function checkEmpty(node) {
+                            assert.strictEqual(0, sourceCode.getDeclaredVariables(node).length);
+                        }
+                        const rule = {
+                            Program: checkEmpty,
+                            EmptyStatement: checkEmpty,
+                            BlockStatement: checkEmpty,
+                            ExpressionStatement: checkEmpty,
+                            LabeledStatement: checkEmpty,
+                            BreakStatement: checkEmpty,
+                            ContinueStatement: checkEmpty,
+                            WithStatement: checkEmpty,
+                            SwitchStatement: checkEmpty,
+                            ReturnStatement: checkEmpty,
+                            ThrowStatement: checkEmpty,
+                            TryStatement: checkEmpty,
+                            WhileStatement: checkEmpty,
+                            DoWhileStatement: checkEmpty,
+                            ForStatement: checkEmpty,
+                            ForInStatement: checkEmpty,
+                            DebuggerStatement: checkEmpty,
+                            ThisExpression: checkEmpty,
+                            ArrayExpression: checkEmpty,
+                            ObjectExpression: checkEmpty,
+                            Property: checkEmpty,
+                            SequenceExpression: checkEmpty,
+                            UnaryExpression: checkEmpty,
+                            BinaryExpression: checkEmpty,
+                            AssignmentExpression: checkEmpty,
+                            UpdateExpression: checkEmpty,
+                            LogicalExpression: checkEmpty,
+                            ConditionalExpression: checkEmpty,
+                            CallExpression: checkEmpty,
+                            NewExpression: checkEmpty,
+                            MemberExpression: checkEmpty,
+                            SwitchCase: checkEmpty,
+                            Identifier: checkEmpty,
+                            Literal: checkEmpty,
+                            ForOfStatement: checkEmpty,
+                            ArrowFunctionExpression: checkEmpty,
+                            YieldExpression: checkEmpty,
+                            TemplateLiteral: checkEmpty,
+                            TaggedTemplateExpression: checkEmpty,
+                            TemplateElement: checkEmpty,
+                            ObjectPattern: checkEmpty,
+                            ArrayPattern: checkEmpty,
+                            RestElement: checkEmpty,
+                            AssignmentPattern: checkEmpty,
+                            ClassBody: checkEmpty,
+                            MethodDefinition: checkEmpty,
+                            MetaProperty: checkEmpty
+                        };
+
+                        rule[type] = function(node) {
+                            const expectedNames = expectedNamesList.shift();
+                            const variables = sourceCode.getDeclaredVariables(node);
+
+                            assert(Array.isArray(expectedNames));
+                            assert(Array.isArray(variables));
+                            assert.strictEqual(expectedNames.length, variables.length);
+                            for (let i = variables.length - 1; i >= 0; i--) {
+                                assert.strictEqual(expectedNames[i], variables[i].name);
+                            }
+                        };
+                        return rule;
+                    }
+                }
+            });
+            linter.verify(code, {
+                rules: { test: 2 },
+                parserOptions: {
+                    ecmaVersion: 6,
+                    sourceType: "module"
+                }
+            });
+
+            // Check all expected names are asserted.
+            assert.strictEqual(0, expectedNamesList.length);
+        }
+
+        it("VariableDeclaration", () => {
+            const code = "\n var {a, x: [b], y: {c = 0}} = foo;\n let {d, x: [e], y: {f = 0}} = foo;\n const {g, x: [h], y: {i = 0}} = foo, {j, k = function(z) { let l; }} = bar;\n ";
+            const namesList = [
+                ["a", "b", "c"],
+                ["d", "e", "f"],
+                ["g", "h", "i", "j", "k"],
+                ["l"]
+            ];
+
+            verify(code, "VariableDeclaration", namesList);
+        });
+
+        it("VariableDeclaration (on for-in/of loop)", () => {
+
+            // TDZ scope is created here, so tests to exclude those.
+            const code = "\n for (var {a, x: [b], y: {c = 0}} in foo) {\n let g;\n }\n for (let {d, x: [e], y: {f = 0}} of foo) {\n let h;\n }\n ";
+            const namesList = [
+                ["a", "b", "c"],
+                ["g"],
+                ["d", "e", "f"],
+                ["h"]
+            ];
+
+            verify(code, "VariableDeclaration", namesList);
+        });
+
+        it("VariableDeclarator", () => {
+
+            // TDZ scope is created here, so tests to exclude those.
+            const code = "\n var {a, x: [b], y: {c = 0}} = foo;\n let {d, x: [e], y: {f = 0}} = foo;\n const {g, x: [h], y: {i = 0}} = foo, {j, k = function(z) { let l; }} = bar;\n ";
+            const namesList = [
+                ["a", "b", "c"],
+                ["d", "e", "f"],
+                ["g", "h", "i"],
+                ["j", "k"],
+                ["l"]
+            ];
+
+            verify(code, "VariableDeclarator", namesList);
+        });
+
+        it("FunctionDeclaration", () => {
+            const code = "\n function foo({a, x: [b], y: {c = 0}}, [d, e]) {\n let z;\n }\n function bar({f, x: [g], y: {h = 0}}, [i, j = function(q) { let w; }]) {\n let z;\n }\n ";
+            const namesList = [
+                ["foo", "a", "b", "c", "d", "e"],
+                ["bar", "f", "g", "h", "i", "j"]
+            ];
+
+            verify(code, "FunctionDeclaration", namesList);
+        });
+
+        it("FunctionExpression", () => {
+            const code = "\n (function foo({a, x: [b], y: {c = 0}}, [d, e]) {\n let z;\n });\n (function bar({f, x: [g], y: {h = 0}}, [i, j = function(q) { let w; }]) {\n let z;\n });\n ";
+            const namesList = [
+                ["foo", "a", "b", "c", "d", "e"],
+                ["bar", "f", "g", "h", "i", "j"],
+                ["q"]
+            ];
+
+            verify(code, "FunctionExpression", namesList);
+        });
+
+        it("ArrowFunctionExpression", () => {
+            const code = "\n (({a, x: [b], y: {c = 0}}, [d, e]) => {\n let z;\n });\n (({f, x: [g], y: {h = 0}}, [i, j]) => {\n let z;\n });\n ";
+            const namesList = [
+                ["a", "b", "c", "d", "e"],
+                ["f", "g", "h", "i", "j"]
+            ];
+
+            verify(code, "ArrowFunctionExpression", namesList);
+        });
+
+        it("ClassDeclaration", () => {
+            const code = "\n class A { foo(x) { let y; } }\n class B { foo(x) { let y; } }\n ";
+            const namesList = [
+                ["A", "A"], // outer scope's and inner scope's.
+                ["B", "B"]
+            ];
+
+            verify(code, "ClassDeclaration", namesList);
+        });
+
+        it("ClassExpression", () => {
+            const code = "\n (class A { foo(x) { let y; } });\n (class B { foo(x) { let y; } });\n ";
+            const namesList = [
+                ["A"],
+                ["B"]
+            ];
+
+            verify(code, "ClassExpression", namesList);
+        });
+
+        it("CatchClause", () => {
+            const code = "\n try {} catch ({a, b}) {\n let x;\n try {} catch ({c, d}) {\n let y;\n }\n }\n ";
+            const namesList = [
+                ["a", "b"],
+                ["c", "d"]
+            ];
+
+            verify(code, "CatchClause", namesList);
+        });
+
+        it("ImportDeclaration", () => {
+            const code = "\n import \"aaa\";\n import * as a from \"bbb\";\n import b, {c, x as d} from \"ccc\";\n ";
+            const namesList = [
+                [],
+                ["a"],
+                ["b", "c", "d"]
+            ];
+
+            verify(code, "ImportDeclaration", namesList);
+        });
+
+        it("ImportSpecifier", () => {
+            const code = "\n import \"aaa\";\n import * as a from \"bbb\";\n import b, {c, x as d} from \"ccc\";\n ";
+            const namesList = [
+                ["c"],
+                ["d"]
+            ];
+
+            verify(code, "ImportSpecifier", namesList);
+        });
+
+        it("ImportDefaultSpecifier", () => {
+            const code = "\n import \"aaa\";\n import * as a from \"bbb\";\n import b, {c, x as d} from \"ccc\";\n ";
+            const namesList = [
+                ["b"]
+            ];
+
+            verify(code, "ImportDefaultSpecifier", namesList);
+        });
+
+        it("ImportNamespaceSpecifier", () => {
+            const code = "\n import \"aaa\";\n import * as a from \"bbb\";\n import b, {c, x as d} from \"ccc\";\n ";
+            const namesList = [
+                ["a"]
+            ];
+
+            verify(code, "ImportNamespaceSpecifier", namesList);
+        });
+    });
+
+    describe("markVariableAsUsed()", () => {
+
+        it("should mark variables in current scope as used", () => {
+            const code = "var a = 1, b = 2;";
+            let spy;
+
+            linter.defineRule("checker", {
+                create(context) {
+                    const sourceCode = context.sourceCode;
+
+                    spy = sinon.spy(() => {
+                        assert.isTrue(sourceCode.markVariableAsUsed("a"));
+
+                        const scope = context.getScope();
+
+                        assert.isTrue(getVariable(scope, "a").eslintUsed);
+                        assert.notOk(getVariable(scope, "b").eslintUsed);
+                    });
+
+                    return { "Program:exit": spy };
+                }
+            });
+
+            linter.verify(code, { rules: { checker: "error" } });
+            assert(spy && spy.calledOnce);
+        });
+
+        it("should mark variables in function args as used", () => {
+            const code = "function abc(a, b) { return 1; }";
+            let spy;
+
+            linter.defineRule("checker", {
+                create(context) {
+                    const sourceCode = context.sourceCode;
+
+                    spy = sinon.spy(node => {
+                        assert.isTrue(sourceCode.markVariableAsUsed("a", node));
+
+                        const scope = context.getScope();
+
+                        assert.isTrue(getVariable(scope, "a").eslintUsed);
+                        assert.notOk(getVariable(scope, "b").eslintUsed);
+                    });
+
+                    return { ReturnStatement: spy };
+                }
+            });
+
+            linter.verify(code, { rules: { checker: "error" } });
+            assert(spy && spy.calledOnce);
+        });
+
+        it("should mark variables in higher scopes as used", () => {
+            const code = "var a, b; function abc() { return 1; }";
+            let returnSpy, exitSpy;
+
+            linter.defineRule("checker", {
+                create(context) {
+                    const sourceCode = context.sourceCode;
+
+                    returnSpy = sinon.spy(node => {
+                        assert.isTrue(sourceCode.markVariableAsUsed("a", node));
+                    });
+                    exitSpy = sinon.spy(() => {
+                        const scope = context.getScope();
+
+                        assert.isTrue(getVariable(scope, "a").eslintUsed);
+                        assert.notOk(getVariable(scope, "b").eslintUsed);
+                    });
+
+                    return { ReturnStatement: returnSpy, "Program:exit": exitSpy };
+                }
+            });
+
+            linter.verify(code, { rules: { checker: "error" } });
+            assert(returnSpy && returnSpy.calledOnce);
+            assert(exitSpy && exitSpy.calledOnce);
+        });
+
+        it("should mark variables in Node.js environment as used", () => {
+            const code = "var a = 1, b = 2;";
+            let spy;
+
+            linter.defineRule("checker", {
+                create(context) {
+                    const sourceCode = context.sourceCode;
+
+                    spy = sinon.spy(() => {
+                        const globalScope = context.getScope(),
+                            childScope = globalScope.childScopes[0];
+
+                        assert.isTrue(sourceCode.markVariableAsUsed("a"));
+
+                        assert.isTrue(getVariable(childScope, "a").eslintUsed);
+                        assert.isUndefined(getVariable(childScope, "b").eslintUsed);
+                    });
+
+                    return { "Program:exit": spy };
+                }
+            });
+
+            linter.verify(code, { rules: { checker: "error" }, env: { node: true } });
+            assert(spy && spy.calledOnce);
+        });
+
+        it("should mark variables in modules as used", () => {
+            const code = "var a = 1, b = 2;";
+            let spy;
+
+            linter.defineRule("checker", {
+                create(context) {
+                    const sourceCode = context.sourceCode;
+
+                    spy = sinon.spy(() => {
+                        const globalScope = context.getScope(),
+                            childScope = globalScope.childScopes[0];
+
+                        assert.isTrue(sourceCode.markVariableAsUsed("a"));
+
+                        assert.isTrue(getVariable(childScope, "a").eslintUsed);
+                        assert.isUndefined(getVariable(childScope, "b").eslintUsed);
+                    });
+
+                    return { "Program:exit": spy };
+                }
+            });
+
+            linter.verify(code, { rules: { checker: "error" }, parserOptions: { ecmaVersion: 6, sourceType: "module" } }, filename, true);
+            assert(spy && spy.calledOnce);
+        });
+
+        it("should return false if the given variable is not found", () => {
+            const code = "var a = 1, b = 2;";
+            let spy;
+
+            linter.defineRule("checker", {
+                create(context) {
+                    const sourceCode = context.sourceCode;
+
+                    spy = sinon.spy(() => {
+                        assert.isFalse(sourceCode.markVariableAsUsed("c"));
+                    });
+
+                    return { "Program:exit": spy };
+                }
+            });
+
+            linter.verify(code, { rules: { checker: "error" } });
+            assert(spy && spy.calledOnce);
+        });
+
     });
 });

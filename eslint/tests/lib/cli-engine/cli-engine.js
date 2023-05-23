@@ -577,7 +577,8 @@ describe("CLIEngine", () => {
                                 severity: 2,
                                 message: "Parsing error: Unexpected token is",
                                 line: 1,
-                                column: 19
+                                column: 19,
+                                nodeType: null
                             }
                         ],
                         suppressedMessages: [],
@@ -622,7 +623,8 @@ describe("CLIEngine", () => {
                                 severity: 2,
                                 message: "Parsing error: Unexpected token",
                                 line: 1,
-                                column: 10
+                                column: 10,
+                                nodeType: null
                             }
                         ],
                         suppressedMessages: [],
@@ -713,7 +715,8 @@ describe("CLIEngine", () => {
                                 severity: 2,
                                 message: "Parsing error: Unexpected token is",
                                 line: 1,
-                                column: 19
+                                column: 19,
+                                nodeType: null
                             }
                         ],
                         suppressedMessages: [],
@@ -4433,7 +4436,7 @@ describe("CLIEngine", () => {
                 const cwd = getFixturePath("ignored-paths", "configurations");
                 const engine = new CLIEngine({ cwd });
 
-                // a .eslintignore in parent directories includes `*.js`, but don't load it.
+                // an .eslintignore in parent directories includes `*.js`, but don't load it.
                 assert(!engine.isPathIgnored("foo.js"));
                 assert(engine.isPathIgnored("node_modules/foo.js"));
             });
@@ -4593,7 +4596,7 @@ describe("CLIEngine", () => {
                 const cwd = getFixturePath("ignored-paths", "no-ignore-file");
                 const engine = new CLIEngine({ ignorePath: false, cwd });
 
-                // a .eslintignore in parent directories includes `*.js`, but don't load it.
+                // an .eslintignore in parent directories includes `*.js`, but don't load it.
                 assert(!engine.isPathIgnored("foo.js"));
                 assert(engine.isPathIgnored("node_modules/foo.js"));
             });
@@ -5018,7 +5021,7 @@ describe("CLIEngine", () => {
 
         it("should call fs.writeFileSync() for each result with output", () => {
             const fakeFS = {
-                    writeFileSync: () => {}
+                    writeFileSync() {}
                 },
                 localCLIEngine = proxyquire("../../../lib/cli-engine/cli-engine", {
                     fs: fakeFS
@@ -5048,7 +5051,7 @@ describe("CLIEngine", () => {
 
         it("should call fs.writeFileSync() for each result with output and not at all for a result without output", () => {
             const fakeFS = {
-                    writeFileSync: () => {}
+                    writeFileSync() {}
                 },
                 localCLIEngine = proxyquire("../../../lib/cli-engine/cli-engine", {
                     fs: fakeFS

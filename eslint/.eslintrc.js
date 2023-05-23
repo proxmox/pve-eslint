@@ -83,9 +83,10 @@ module.exports = {
     },
     overrides: [
         {
-            files: ["tools/*.js"],
+            files: ["tools/*.js", "docs/tools/*.js"],
             rules: {
-                "no-console": "off"
+                "no-console": "off",
+                "n/no-process-exit": "off"
             }
         },
         {
@@ -101,7 +102,7 @@ module.exports = {
                 "eslint-plugin/prefer-placeholders": "error",
                 "eslint-plugin/prefer-replace-text": "error",
                 "eslint-plugin/report-message-format": ["error", "[^a-z].*\\.$"],
-                "eslint-plugin/require-meta-docs-description": ["error", { pattern: "^(Enforce|Require|Disallow)" }],
+                "eslint-plugin/require-meta-docs-description": ["error", { pattern: "^(Enforce|Require|Disallow) .+[^. ]$" }],
                 "internal-rules/no-invalid-meta": "error"
             }
         },
@@ -109,7 +110,7 @@ module.exports = {
             files: ["lib/rules/*"],
             excludedFiles: ["index.js"],
             rules: {
-                "eslint-plugin/require-meta-docs-url": ["error", { pattern: "https://eslint.org/docs/rules/{{name}}" }]
+                "eslint-plugin/require-meta-docs-url": ["error", { pattern: "https://eslint.org/docs/latest/rules/{{name}}" }]
             }
         },
         {
