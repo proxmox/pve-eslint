@@ -20,11 +20,12 @@ all: $(DEB)
 
 $(BUILDDIR): builddir
 builddir: $(SRCDIR)
-	rm -rf $(BUILDDIR)
-	mkdir $(BUILDDIR)
-	cp -a debian $(BUILDDIR)/
-	cp -a $(SRCDIR)/* $(BUILDDIR)/
-	echo "git clone git://git.proxmox.com/git/pve-eslint.git\\ngit checkout $(GITVERSION)" > $(BUILDDIR)/debian/SOURCE
+	rm -rf $(BUILDDIR).tmp $(BUILDDIR)
+	mkdir $(BUILDDIR).tmp
+	cp -a debian $(BUILDDIR).tmp/
+	cp -a $(SRCDIR)/* $(BUILDDIR).tmp/
+	echo "git clone git://git.proxmox.com/git/pve-eslint.git\\ngit checkout $(GITVERSION)" > $(BUILDDIR).tmp/debian/SOURCE
+	mv $(BUILDDIR).tmp $(BUILDDIR)
 
 
 dsc: $(DSC)
