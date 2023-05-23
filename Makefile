@@ -60,7 +60,7 @@ ${BUILDSRC}: ${UPSTREAM} patches
 	cd $@.tmp; rm -rf .pc ./patches
 	mv $@.tmp $@
 	cd $@; npm install
-	cd $@; npm run webpack
+	cd $@; npm run build:webpack
 
 .PHONY: upload
 upload: ${DEB}
