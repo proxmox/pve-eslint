@@ -98,5 +98,5 @@ clean:
 	rm -f *.deb *.dsc *.changes $(PACKAGE)*.tar* *.build *.buildinfo .any-eslint-js
 
 .PHONY: dinstall
-dinstall: deb
+dinstall: $(DEB)
 	dpkg -i $(DEB)
