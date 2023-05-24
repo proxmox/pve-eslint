@@ -31,6 +31,9 @@ dsc: $(DSC)
 	$(MAKE) $(DSC)
 	lintian $(DSC)
 
+sbuild: $(DSC)
+	sbuild $(DSC)
+
 $(DSC): $(BUILDDIR) $(ORIG_SRC_TAR)
 	cd $(BUILDDIR); dpkg-buildpackage -S -uc -us -d
 
