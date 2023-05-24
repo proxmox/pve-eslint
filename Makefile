@@ -11,7 +11,7 @@ DSC=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION).dsc
 SRCDIR=src
 UPSTREAM=eslint
 UPSTREAMTAG=v8.41.0
-BUILDSRC=$(UPSTREAM)-$(UPSTREAMTAG)
+UPSTREAMSRC=$(UPSTREAM)-$(UPSTREAMTAG)
 
 all: $(DEB)
 	@echo $(DEB)
@@ -41,27 +41,37 @@ $(DEB): builddir
 
 .PHONY: download
 download:
+	rm -rf $(UPSTREAM)
+	$(MAKE) $(UPSTREAM)
+
+$(UPSTREAM):
 	rm -rf $(UPSTREAM).tmp $(UPSTREAM)
 	git clone -b $(UPSTREAMTAG) --depth 1 https://github.com/eslint/eslint $(UPSTREAM).tmp
 	rm -rf $(UPSTREAM).tmp/.git
 	find $(UPSTREAM).tmp/ -type f -name '.gitignore' -delete
 	mv $(UPSTREAM).tmp $(UPSTREAM)
 
-# NOTE: needs npm installed, downloads packages from npm
-.PHONY: buildupstream
-buildupstream: $(BUILDSRC)
-	cp $(BUILDSRC)/build/eslint.js $(SRCDIR)/lib/eslint.js
+.PHONY: vendor-upstream
+vendor-upstream:
+	rm -rf $(UPSTREAMSRC) src/lib/eslint.js
+	$(MAKE) src/lib/eslint.js
 
-$(BUILDSRC): $(UPSTREAM) patches
-	rm -rf $@
+src/lib/eslint.js: $(UPSTREAMSRC)/build/eslint.js
+	cp $(UPSTREAMSRC)/build/eslint.js src/lib/eslint.js
+
+$(UPSTREAMSRC)/build/eslint.js: $(UPSTREAMSRC)
+# NOTE: needs npm installed, downloads packages from npm
+	cd $(UPSTREAMSRC); npm install
+	cd $(UPSTREAMSRC); npm run build:webpack
+
+$(UPSTREAMSRC): $(UPSTREAM) patches
+	rm -rf $@ $@.tmp
 	mkdir $@.tmp
 	rsync -ra $(UPSTREAM)/ $@.tmp
 	cd $@.tmp; ln -s ../patches patches
 	cd $@.tmp; quilt push -a
 	cd $@.tmp; rm -rf .pc ./patches
 	mv $@.tmp $@
-	cd $@; npm install
-	cd $@; npm run build:webpack
 
 .PHONY: upload
 upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
