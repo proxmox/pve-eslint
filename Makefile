@@ -4,6 +4,7 @@ PACKAGE=pve-eslint
 
 GITVERSION:=$(shell git rev-parse HEAD)
 BUILDDIR ?= $(PACKAGE)-$(DEB_VERSION_UPSTREAM)
+ORIG_SRC_TAR=$(PACKAGE)_$(DEB_VERSION_UPSTREAM).orig.tar.gz
 
 DEB=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION)_all.deb
 DSC=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION).dsc
@@ -26,9 +27,15 @@ $(BUILDDIR): .any-eslint-js
 	mv $@.tmp $@
 
 dsc: $(DSC)
-$(DSC): $(BUILDDIR)
-	cd $(BUILDDIR); dpkg-buildpackage -S -uc -us
+	$(MAKE) clean
+	$(MAKE) $(DSC)
 	lintian $(DSC)
+
+$(DSC): $(BUILDDIR) $(ORIG_SRC_TAR)
+	cd $(BUILDDIR); dpkg-buildpackage -S -uc -us -d
+
+$(ORIG_SRC_TAR): $(BUILDDIR)
+	tar czf $(ORIG_SRC_TAR) --exclude="$(BUILDDIR)/debian" $(BUILDDIR)
 
 deb: $(DEB)
 $(DEB): $(BUILDDIR)
@@ -84,7 +91,8 @@ distclean: clean
 
 .PHONY: clean
 clean:
-	rm -rf *~ debian/*~ *.deb $(BUILDSRC) *.tmp/ $(BUILDDIR) *.changes *.tar.gz *.dsc *.buildinfo
+	rm -rf $(UPSTREAM)-v[0-9]*/ *.tmp/ $(PACKAGE)-[0-9]*/
+	rm -f *.deb *.dsc *.changes $(PACKAGE)*.tar* *.build *.buildinfo .any-eslint-js
 
 .PHONY: dinstall
 dinstall: deb
