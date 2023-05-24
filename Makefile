@@ -8,7 +8,6 @@ BUILDDIR ?= $(PACKAGE)-$(DEB_VERSION_UPSTREAM)
 DEB=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION)_all.deb
 DSC=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION).dsc
 
-SRCDIR=src
 UPSTREAM=eslint
 UPSTREAMTAG=v8.41.0
 UPSTREAMSRC=$(UPSTREAM)-$(UPSTREAMTAG)
@@ -16,25 +15,23 @@ UPSTREAMSRC=$(UPSTREAM)-$(UPSTREAMTAG)
 all: $(DEB)
 	@echo $(DEB)
 
-.PHONY: dsc deb builddir
+.PHONY: dsc deb
 
-$(BUILDDIR): builddir
-builddir: $(SRCDIR)
-	rm -rf $(BUILDDIR).tmp $(BUILDDIR)
-	mkdir $(BUILDDIR).tmp
-	cp -a debian $(BUILDDIR).tmp/
-	cp -a $(SRCDIR)/* $(BUILDDIR).tmp/
-	echo "git clone git://git.proxmox.com/git/pve-eslint.git\\ngit checkout $(GITVERSION)" > $(BUILDDIR).tmp/debian/SOURCE
-	mv $(BUILDDIR).tmp $(BUILDDIR)
-
+$(BUILDDIR): .any-eslint-js
+	rm -rf $@.tmp $@
+	mkdir $@.tmp
+	cp -a debian $@.tmp/
+	cp -a src/* $@.tmp/
+	echo "git clone git://git.proxmox.com/git/pve-eslint.git\\ngit checkout $(GITVERSION)" > $@.tmp/debian/SOURCE
+	mv $@.tmp $@
 
 dsc: $(DSC)
-$(DSC): builddir
+$(DSC): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -S -uc -us
 	lintian $(DSC)
 
 deb: $(DEB)
-$(DEB): builddir
+$(DEB): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -uc -us
 	lintian $(DEB)
 	@echo $(DEB)
@@ -55,6 +52,10 @@ $(UPSTREAM):
 vendor-upstream:
 	rm -rf $(UPSTREAMSRC) src/lib/eslint.js
 	$(MAKE) src/lib/eslint.js
+
+.any-eslint-js:
+	[ -e src/lib/eslint.js ] || $(MAKE) src/lib/eslint.js
+	touch $@
 
 src/lib/eslint.js: $(UPSTREAMSRC)/build/eslint.js
 	cp $(UPSTREAMSRC)/build/eslint.js src/lib/eslint.js
