@@ -18,18 +18,25 @@ cp "$repo/eslint/CHANGELOG.md" "$cfn"
 
 sed -ri 's/^\* \S+ /+ /g' "$cfn"
 
-sed -i '/ Sponsors: /Id' "$cfn"
-sed -i '/ Chore: /Id' "$cfn"
-sed -i '/ Docs: /Id' "$cfn"
-sed -i '/ ci: /Id' "$cfn"
-sed -i '/ build: /Id' "$cfn"
-sed -i '/ESLint Jenkins/Id' "$cfn"
+FILTER_LINES="\
+  / Sponsors: /Id; \
+  / Chore: /Id; \
+  / Docs: /Id; \
+  / ci: /Id; \
+  / build: /Id; \
+  /ESLint Jenkins/Id; \
+"
+
+sed -i "$FILTER_LINES" "$cfn"
 
 if [[ $arg ]]; then
    version="$arg"
    sed -i "/^$version -/Q" "$cfn"
    sed -i '/^\+ /!d' "$cfn"
 fi
+
+# drop PR authors
+sed -Ei 's/ \([^)]+\)$//g' "$cfn"
 
 mv "$cfn" "$repo/changes"
 
