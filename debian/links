@@ -1,1 +1,1 @@
-usr/share/nodejs/pve-eslint/bin/app.js usr/bin/eslint
+usr/share/nodejs/pve-eslint/bin/app.js usr/bin/pve-eslint
