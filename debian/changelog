@@ -1,3 +1,13 @@
+pve-eslint (8.41.0-3) bookworm; urgency=medium
+
+  * change binary name from 'eslint' to 'pve-eslint' to avoid breaking
+    original eslint, that some (development) packages depend on
+
+  * switch to using `Command.opts()` to fix regression with accessing CLI
+    options
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 30 Aug 2023 11:42:17 +0200
+
 pve-eslint (8.41.0-2) bookworm; urgency=medium
 
   * re-build for Debian 12 Bookworm based releases
