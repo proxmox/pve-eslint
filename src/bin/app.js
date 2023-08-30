@@ -27,13 +27,14 @@ program.on('--help', function() {
 });
 
 program.parse(process.argv);
+let options = program.opts();
 
-if (program.config && program.extend) {
+if (options.config && options.extend) {
     console.error('Cannot use both, --config and --extend, at the same time!');
     process.exit(1);
 }
 
-if (program.args.length < 1 && !program.outputConfig) {
+if (program.args.length < 1 && !options.outputConfig) {
     program.help();
 }
 
@@ -44,8 +45,8 @@ if (!paths.length) {
 }
 
 let threadCount = 4;
-if (program.threads) {
-    threadCount = program.threads;
+if (options.threads) {
+    threadCount = options.threads;
 }
 
 const defaultConfig = {
@@ -274,16 +275,16 @@ let pathExpand = (p) => {
 };
 
 let config = defaultConfig;
-if (program.config) {
+if (options.config) {
     config = {
-	"extends": pathExpand(program.config),
+	"extends": pathExpand(options.config),
     };
-} else if (program.extend) {
-    config.extends = pathExpand(program.extend);
+} else if (options.extend) {
+    config.extends = pathExpand(options.extend);
     console.log(`Extend with path: ${config.extends}`);
 }
 
-if (program.outputConfig) {
+if (options.outputConfig) {
     let cfg = JSON.stringify(config, null, 2);
     console.log(cfg);
     process.exit(0);
@@ -292,7 +293,7 @@ if (program.outputConfig) {
 const cliOptions = {
     baseConfig: config,
     useEslintrc: true,
-    fix: !!program.fix,
+    fix: !!options.fix,
     cwd: process.cwd(),
 };
 
@@ -322,7 +323,7 @@ results.forEach(function(result) {
     let filename = path.relative(process.cwd(), result.filePath);
     let msgs = result.messages;
     let max_sev = 0;
-    if (!!program.fix && result.output) {
+    if (!!options.fix && result.output) {
 	fixes++;
     }
     if (msgs.length <= 0) {
@@ -337,7 +338,7 @@ results.forEach(function(result) {
 	let msg = `: line ${color.bold(e.line)} col ${color.bold(e.column)}: ${e.ruleId}`;
 	if (e.severity === 1) {
 	    msg = color.yellow("WARN" + msg);
-	    if (exitcode < 1 && !!program.strict) {
+	    if (exitcode < 1 && !!options.strict) {
 		exitcode = 1;
 	    }
 	} else if (e.severity === 2) {
@@ -351,7 +352,7 @@ results.forEach(function(result) {
 	if (e.message) {
 	    msg += ` - ${e.message}`;
 	}
-	if (!program.fix && e.fix) {
+	if (!options.fix && e.fix) {
 	    fixes++;
 	    msg += ' (*)';
 	}
@@ -386,7 +387,7 @@ if (results.length > 1) {
 }
 console.log('------------------------------------------------------------');
 
-if (program.fix) {
+if (options.fix) {
     if (fixes > 0) {
 	console.log(`Writing ${color.bold(fixes)} fixed files...`);
 	await eslint.ESLint.outputFixes(results);
